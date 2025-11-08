@@ -5,14 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-        .header { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); color: #2c3e50; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .header h1 { font-size: 28px; font-weight: 700; color: #2c3e50; }
+        body { font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-primary); min-height: 100vh; transition: all 0.3s ease; }
+        :root {
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-secondary: rgba(255,255,255,0.95);
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border-color: rgba(0,0,0,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --bg-secondary: rgba(30,30,30,0.95);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border-color: rgba(255,255,255,0.1);
+            --shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        [data-theme="dark"] .section {
+            background: rgba(40,40,40,0.95) !important;
+        }
+        [data-theme="dark"] .stock-card {
+            background: rgba(50,50,50,0.9) !important;
+            border-color: rgba(255,255,255,0.1) !important;
+        }
+        [data-theme="dark"] .portfolio-table th {
+            background: rgba(60,60,60,0.8) !important;
+        }
+        [data-theme="dark"] .portfolio-table tr:hover {
+            background: rgba(70,70,70,0.5) !important;
+        }
+        .header { background: var(--bg-secondary); backdrop-filter: blur(20px); color: var(--text-primary); padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); border-bottom: 1px solid var(--border-color); }
+        .header h1 { font-size: 32px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
         .balance { font-size: 20px; font-weight: 600; color: #27ae60; background: rgba(39,174,96,0.1); padding: 8px 16px; border-radius: 25px; }
         .logout { background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; padding: 10px 20px; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; }
         .logout:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(231,76,60,0.4); }
-        .container { max-width: 1400px; margin: 30px auto; padding: 0 30px; }
-        .section { background: rgba(255,255,255,0.95); margin-bottom: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); backdrop-filter: blur(10px); overflow: hidden; }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 30px; position: relative; z-index: 1; }
+        .section { background: rgba(255,255,255,0.95); margin-bottom: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); backdrop-filter: blur(10px); overflow: visible; position: relative; z-index: 2; }
         .section-header { padding: 20px 30px; border-bottom: 1px solid rgba(0,0,0,0.05); font-weight: 600; font-size: 18px; color: #2c3e50; }
         .tabs { display: flex; background: rgba(0,0,0,0.02); }
         .tab { padding: 15px 25px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; color: #7f8c8d; transition: all 0.3s ease; }
@@ -20,7 +49,8 @@
         .tab.active { border-bottom-color: #3498db; background: white; color: #2c3e50; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .stocks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; padding: 30px; }
+        .stocks-grid { padding: 30px; }
+        .options-grid { display: block; }
         .stock-card { background: white; border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; padding: 20px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
         .stock-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
         .stock-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
@@ -60,15 +90,24 @@
         .video-title { font-weight: 600; color: #2c3e50; margin-bottom: 8px; font-size: 16px; line-height: 1.4; }
         .video-channel { color: #7f8c8d; font-size: 14px; margin-bottom: 5px; }
         .video-duration { color: #95a5a6; font-size: 12px; }
+        .theme-switch input:checked + .slider { background-color: #3498db; }
+        .theme-switch input:checked + .slider .slider-dot { transform: translateX(30px); }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>OptionsPaye</h1>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <button onclick="toggleChatBot()" class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; border: none;">🤖 AI News</button>
-            <span class="balance">Balance: ₹<span id="balance">0</span></span>
-            <a href="/logout" class="logout">Logout</a>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <button onclick="toggleChatBot()" class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 10px 18px; border-radius: 25px; font-size: 14px; border: none; font-weight: 500;">🤖 AI Assistant</button>
+            <div style="display: flex; align-items: center; gap: 15px; background: var(--bg-secondary); padding: 12px 20px; border-radius: 30px; border: 1px solid var(--border-color);">
+                <span class="balance" style="font-weight: 600; color: var(--text-primary);">Balance: ₹<span id="balance">0</span></span>
+                <button onclick="openAddFunds()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 8px 16px; border: none; border-radius: 20px; font-size: 13px; font-weight: 500;">+ Add Funds</button>
+            </div>
+            <div class="user-profile" onclick="openUserProfile()" style="position: relative;">
+                <div style="width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(45deg, #3498db, #2980b9); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; cursor: pointer; border: 3px solid var(--border-color);">
+                    <span id="userInitial">U</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -107,6 +146,7 @@
                 <div class="tab" onclick="switchTab('index')">Index</div>
                 <div class="tab" onclick="switchTab('strategies')">Strategies</div>
                 <div class="tab" onclick="switchTab('learn')">Learn</div>
+                <div class="tab" onclick="switchTab('profile')">Profile</div>
             </div>
             <div id="options" class="tab-content active">
                 <div style="padding: 20px 30px; border-bottom: 1px solid rgba(0,0,0,0.05);">
@@ -126,24 +166,50 @@
                         <button class="btn" onclick="showATMOptions()" style="background: #95a5a6; color: white; padding: 10px 20px;">Show ATM</button>
                     </div>
                 </div>
-                <div class="stocks-grid" id="optionsGrid"></div>
+                <div class="options-grid" id="optionsGrid"></div>
             </div>
             <div id="futures" class="tab-content">
                 <div class="stocks-grid" id="futuresGrid"></div>
             </div>
             <div id="index" class="tab-content">
                 <div style="padding: 30px;">
-                    <div class="index-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; padding: 30px; margin-bottom: 25px; text-align: center;">
-                        <h2 style="margin: 0 0 10px 0; font-size: 28px;">NIFTY 50</h2>
-                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 10px;" id="indexPrice">Loading...</div>
-                        <div style="font-size: 18px; font-weight: 500;" id="indexChange">--</div>
-                        <div style="margin-top: 20px;">
-                            <button class="btn" onclick="openNiftyChart()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 12px 25px; font-size: 16px; font-weight: 600;">📈 See Chart</button>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                        <div class="index-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; padding: 25px; text-align: center;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 20px;">NIFTY 50</h3>
+                            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;" id="niftyIndexPrice">Loading...</div>
+                            <div style="font-size: 14px; font-weight: 500;" id="niftyIndexChange">--</div>
+                            <div style="margin-top: 15px;">
+                                <button class="btn" onclick="openChart('NIFTY')" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 14px; font-weight: 600;">📈 Chart</button>
+                            </div>
+                        </div>
+                        <div class="index-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; border-radius: 15px; padding: 25px; text-align: center;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 20px;">BANK NIFTY</h3>
+                            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;" id="bankniftyIndexPrice">Loading...</div>
+                            <div style="font-size: 14px; font-weight: 500;" id="bankniftyIndexChange">--</div>
+                            <div style="margin-top: 15px;">
+                                <button class="btn" onclick="openChart('BANKNIFTY')" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 14px; font-weight: 600;">📈 Chart</button>
+                            </div>
+                        </div>
+                        <div class="index-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; border-radius: 15px; padding: 25px; text-align: center;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 20px;">INDIA VIX</h3>
+                            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;" id="vixIndexPrice">Loading...</div>
+                            <div style="font-size: 14px; font-weight: 500;" id="vixIndexChange">--</div>
+                            <div style="margin-top: 15px;">
+                                <button class="btn" onclick="openChart('VIX')" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 14px; font-weight: 600;">📈 Chart</button>
+                            </div>
+                        </div>
+                        <div class="index-card" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; border-radius: 15px; padding: 25px; text-align: center;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 20px;">SENSEX</h3>
+                            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;" id="sensexIndexPrice">Loading...</div>
+                            <div style="font-size: 14px; font-weight: 500;" id="sensexIndexChange">--</div>
+                            <div style="margin-top: 15px;">
+                                <button class="btn" onclick="openChart('SENSEX')" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 14px; font-weight: 600;">📈 Chart</button>
+                            </div>
                         </div>
                     </div>
                     <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
                         <h3 style="color: #2c3e50; margin-bottom: 15px;">Market Information</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
                             <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                                 <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Market Status</div>
                                 <div style="font-size: 16px; font-weight: 600; color: #27ae60;" id="marketStatus">Open</div>
@@ -152,9 +218,22 @@
                                 <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Last Updated</div>
                                 <div style="font-size: 16px; font-weight: 600; color: #2c3e50;" id="lastUpdated">--</div>
                             </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Day Range</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #2c3e50;" id="dayRange">--</div>
+                        </div>
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px;">
+                            <h4 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 16px;">Day Ranges</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                                <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #667eea;">
+                                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 3px;">NIFTY 50</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #2c3e50;" id="niftyDayRange">--</div>
+                                </div>
+                                <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #e74c3c;">
+                                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 3px;">BANK NIFTY</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #2c3e50;" id="bankniftyDayRange">--</div>
+                                </div>
+                                <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #27ae60;">
+                                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 3px;">SENSEX</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #2c3e50;" id="sensexDayRange">--</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -171,6 +250,92 @@
                     <h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">📚 Learn Options Trading</h3>
                     <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">Master options trading with these carefully selected educational videos</p>
                     <div class="video-grid" id="videoGrid"></div>
+                </div>
+            </div>
+            <div id="profile" class="tab-content">
+                <div style="padding: 40px; max-width: 800px; margin: 0 auto;">
+                    <div style="background: var(--bg-secondary); border-radius: 20px; padding: 40px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
+                        <div style="text-align: center; margin-bottom: 40px;">
+                            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(45deg, #3498db, #2980b9); display: flex; align-items: center; justify-content: center; color: white; font-size: 36px; font-weight: 700; margin: 0 auto 20px; border: 4px solid var(--border-color);">
+                                <span id="profileInitial">U</span>
+                            </div>
+                            <h2 style="color: var(--text-primary); margin: 0 0 10px 0;" id="profileUserName">User Profile</h2>
+                            <p style="color: var(--text-secondary); margin: 0;">OptionsPaye Premium Trader</p>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 40px;">
+                            <div style="background: var(--border-color); padding: 25px; border-radius: 15px;">
+                                <h4 style="color: var(--text-primary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                                    <span>💰</span> Account Balance
+                                </h4>
+                                <p style="font-size: 24px; font-weight: 700; color: #27ae60; margin: 0;">₹<span id="profileBalance">0</span></p>
+                            </div>
+                            <div style="background: var(--border-color); padding: 25px; border-radius: 15px;">
+                                <h4 style="color: var(--text-primary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                                    <span>📈</span> Active Positions
+                                </h4>
+                                <p style="font-size: 24px; font-weight: 700; color: #3498db; margin: 0;" id="activePositions">0</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; gap: 20px;">
+                            <div style="background: var(--border-color); padding: 25px; border-radius: 15px;">
+                                <h4 style="color: var(--text-primary); margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px;">
+                                    <span>⚙️</span> Application Settings
+                                </h4>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                                    <div>
+                                        <div style="color: var(--text-primary); font-weight: 600;">Dark Theme</div>
+                                        <div style="color: var(--text-secondary); font-size: 13px;">Switch between light and dark mode</div>
+                                    </div>
+                                    <label class="theme-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
+                                        <input type="checkbox" id="profileThemeToggle" onchange="toggleTheme()" style="opacity: 0; width: 0; height: 0;">
+                                        <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 30px;"></span>
+                                        <span class="slider-dot" style="position: absolute; content: ''; height: 24px; width: 24px; left: 3px; bottom: 3px; background-color: white; transition: transform .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                                    <div>
+                                        <div style="color: var(--text-primary); font-weight: 600;">Push Notifications</div>
+                                        <div style="color: var(--text-secondary); font-size: 13px;">Receive trade alerts and updates</div>
+                                    </div>
+                                    <label class="theme-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
+                                        <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                                        <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3498db; transition: .4s; border-radius: 30px;"></span>
+                                        <span class="slider-dot" style="position: absolute; content: ''; height: 24px; width: 24px; right: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                                    <div>
+                                        <div style="color: var(--text-primary); font-weight: 600;">Auto-refresh Data</div>
+                                        <div style="color: var(--text-secondary); font-size: 13px;">Automatically update market data</div>
+                                    </div>
+                                    <label class="theme-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
+                                        <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                                        <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3498db; transition: .4s; border-radius: 30px;"></span>
+                                        <span class="slider-dot" style="position: absolute; content: ''; height: 24px; width: 24px; right: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <button onclick="openAddFunds()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                                    💳 Add Funds
+                                </button>
+                                <button onclick="openWithdrawFunds()" style="background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                                    💰 Withdraw
+                                </button>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <button onclick="showTransactionHistory()" style="background: linear-gradient(45deg, #3498db, #2980b9); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                                    📄 Transaction History
+                                </button>
+                                <a href="/logout" style="background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">
+                                    🚪 Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -222,6 +387,104 @@
         </div>
     </div>
 
+    <!-- Add Funds Modal -->
+    <div id="addFundsModal" class="modal">
+        <div class="modal-content" style="width: 420px; max-width: 95vw; height: 480px; max-height: 90vh; background: var(--bg-secondary); color: var(--text-primary); cursor: move; overflow-y: auto;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); cursor: move; user-select: none; padding: 15px 20px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 10;">
+                <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">Add Funds <small style="color: var(--text-secondary); font-weight: normal;">(Drag)</small></h3>
+                <span class="close" onclick="closeAddFunds()" style="color: var(--text-secondary); font-size: 24px;">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div class="form-group">
+                    <label style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px; display: block; font-size: 14px;">Enter Amount</label>
+                    <input type="number" id="fundAmount" placeholder="Enter amount" min="100" max="500000" style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px; background: var(--bg-secondary); color: var(--text-primary);">
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button onclick="setAmount(1000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">+1K</button>
+                        <button onclick="setAmount(5000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">+5K</button>
+                        <button onclick="setAmount(10000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">+10K</button>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label style="color: var(--text-primary); font-weight: 600; margin-bottom: 12px; display: block; font-size: 14px;">Payment Method</label>
+                    <div style="display: grid; gap: 8px;">
+                        <div class="payment-option" onclick="selectPayment('upi')" style="padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(45deg, #ff6b35, #f7931e); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">UPI</div>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">UPI Payment</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">Any UPI app</div>
+                            </div>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('phonepe')" style="padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(45deg, #5f259f, #3c1361); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">PE</div>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">PhonePe</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">Quick payments</div>
+                            </div>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('gpay')" style="padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(45deg, #4285f4, #34a853); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">GP</div>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">Google Pay</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">Google Pay</div>
+                            </div>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('netbanking')" style="padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(45deg, #2c3e50, #34495e); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">NB</div>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">Net Banking</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">All banks</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button onclick="processFundAddition()" class="btn btn-buy" style="flex: 1; padding: 12px; font-size: 14px; font-weight: 600;">Proceed to Pay</button>
+                    <button onclick="closeAddFunds()" class="btn" style="background: var(--border-color); color: var(--text-primary); flex: 1; padding: 12px; font-size: 14px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Funds Modal -->
+    <div id="withdrawFundsModal" class="modal">
+        <div class="modal-content" style="width: 420px; max-width: 95vw; height: 400px; max-height: 90vh; background: var(--bg-secondary); color: var(--text-primary); cursor: move; overflow-y: auto;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); cursor: move; user-select: none; padding: 15px 20px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 10;">
+                <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">Withdraw Funds <small style="color: var(--text-secondary); font-weight: normal;">(Drag)</small></h3>
+                <span class="close" onclick="closeWithdrawFunds()" style="color: var(--text-secondary); font-size: 24px;">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div class="form-group">
+                    <label style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px; display: block; font-size: 14px;">Available Balance</label>
+                    <div style="background: var(--border-color); padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #27ae60;">₹<span id="availableBalance">0</span></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px; display: block; font-size: 14px;">Withdraw Amount</label>
+                    <input type="number" id="withdrawAmount" placeholder="Enter amount to withdraw" min="100" style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px; background: var(--bg-secondary); color: var(--text-primary);">
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button onclick="setWithdrawAmount(1000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">1K</button>
+                        <button onclick="setWithdrawAmount(5000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">5K</button>
+                        <button onclick="setWithdrawAmount(10000)" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">10K</button>
+                        <button onclick="setWithdrawAllAmount()" style="padding: 6px 12px; background: var(--border-color); border: none; border-radius: 15px; color: var(--text-primary); cursor: pointer; font-size: 12px;">All</button>
+                    </div>
+                </div>
+                <div style="background: rgba(231,76,60,0.1); padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
+                    <div style="font-size: 13px; color: #c0392b; line-height: 1.4;">
+                        <strong>⚠️ Withdrawal Information:</strong><br>
+                        • Funds will be credited to your registered bank account<br>
+                        • Processing time: 2-3 business days<br>
+                        • No withdrawal charges
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button onclick="processWithdrawal()" class="btn btn-sell" style="flex: 1; padding: 12px; font-size: 14px; font-weight: 600;">Withdraw Funds</button>
+                    <button onclick="closeWithdrawFunds()" class="btn" style="background: var(--border-color); color: var(--text-primary); flex: 1; padding: 12px; font-size: 14px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- AI Chat Assistant -->
     <div id="chatBot" style="position: fixed; bottom: 20px; right: 20px; width: 350px; height: 500px; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1001; display: none; flex-direction: column;">
         <div style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 15px; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
@@ -245,54 +508,79 @@
 
     <!-- Strategy Creation Modal -->
     <div id="strategyModal" class="modal">
-        <div class="modal-content" style="width: 500px; max-width: 90vw;">
-            <div class="modal-header">
-                <h3>Create Options Strategy</h3>
-                <span class="close" onclick="closeStrategyModal()">&times;</span>
+        <div class="modal-content" style="width: 700px; max-width: 95vw; height: 500px; max-height: 90vh; cursor: move; overflow-y: auto;">
+            <div class="modal-header" style="cursor: move; user-select: none; padding: 15px 20px; position: sticky; top: 0; background: white; z-index: 10; border-bottom: 1px solid #eee;">
+                <h3 style="margin: 0; font-size: 18px;">OptionsPaye Strategy Builder <small style="color: #7f8c8d; font-weight: normal;">(Drag)</small></h3>
+                <span class="close" onclick="closeStrategyModal()" style="font-size: 24px;">&times;</span>
             </div>
-            <form id="strategyForm">
-                <div class="form-group">
-                    <label>Strategy Name:</label>
-                    <input type="text" id="strategyName" placeholder="My Strategy" required>
+            <form id="strategyForm" style="padding: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Strategy Name:</label>
+                        <input type="text" id="strategyName" placeholder="My Strategy" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Strategy Type:</label>
+                        <select id="strategyType" onchange="updateStrategyDescription()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="long_straddle">Long Straddle</option>
+                            <option value="short_straddle">Short Straddle</option>
+                            <option value="long_strangle">Long Strangle</option>
+                            <option value="short_strangle">Short Strangle</option>
+                            <option value="iron_condor">Iron Condor</option>
+                            <option value="butterfly">Butterfly Spread</option>
+                            <option value="custom">Custom Strategy</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Strategy Type:</label>
-                    <select id="strategyType" onchange="updateStrategyDescription()" style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
-                        <option value="long_straddle">Long Straddle</option>
-                        <option value="short_straddle">Short Straddle</option>
-                        <option value="long_strangle">Long Strangle</option>
-                        <option value="short_strangle">Short Strangle</option>
-                        <option value="iron_condor">Iron Condor</option>
-                        <option value="butterfly">Butterfly Spread</option>
-                    </select>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Strike Price:</label>
+                        <input type="number" id="strikePrice" placeholder="24500" step="50" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Expiry:</label>
+                        <select id="expiryDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Lots:</label>
+                        <input type="number" id="strategyLots" min="1" value="1" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Strike Price (ATM):</label>
-                    <input type="number" id="strikePrice" placeholder="24500" step="50" required>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Max Loss (% Capital):</label>
+                        <input type="number" id="maxLossPercent" min="1" max="50" value="5" step="0.5" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div id="customStrategyOptions" style="display: none;">
+                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Stop Loss Type:</label>
+                        <select id="stopLossType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="capital_deployed">Capital Deployed</option>
+                            <option value="total_funds">Total Portfolio</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Expiry Date:</label>
-                    <select id="expiryDate" style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
-                        <option value="weekly">Current Week</option>
-                        <option value="monthly">Current Month</option>
-                    </select>
+                <div id="customStrategyOptionsRow2" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Stop Loss %:</label>
+                            <input type="number" id="stopLossPercent" min="5" max="100" value="20" step="5" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block;">Target Profit %:</label>
+                            <input type="number" id="targetProfit" min="10" max="500" value="50" step="10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Number of Lots:</label>
-                    <input type="number" id="strategyLots" min="1" value="1" required>
-                </div>
-                <div class="form-group">
-                    <label>Max Loss (% of Capital):</label>
-                    <input type="number" id="maxLossPercent" min="1" max="50" value="5" step="0.5" required>
-                    <small style="color: #7f8c8d;">Maximum loss as percentage of your total capital</small>
-                </div>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Strategy Description:</h4>
-                    <p id="strategyDescription" style="margin: 0; color: #7f8c8d; font-size: 14px; line-height: 1.5;">Select a strategy to see description</p>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px;">Strategy Info:</h4>
+                    <p id="strategyDescription" style="margin: 0; font-size: 12px; line-height: 1.4; opacity: 0.9;">Select a strategy to see description</p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn btn-buy" style="flex: 1;">Create Strategy</button>
-                    <button type="button" class="btn" onclick="closeStrategyModal()" style="background: #95a5a6; color: white; flex: 1;">Cancel</button>
+                    <button type="submit" class="btn btn-buy" style="flex: 1; padding: 10px;">Create Strategy</button>
+                    <button type="button" class="btn" onclick="closeStrategyModal()" style="background: #95a5a6; color: white; flex: 1; padding: 10px;">Cancel</button>
                 </div>
             </form>
         </div>
@@ -396,55 +684,97 @@
         }
         
         function loadIndexData() {
+            // Check if market is open
+            const now = new Date();
+            const day = now.getDay();
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            const currentTime = hour * 60 + minute;
+            const marketOpen = 9 * 60 + 15;
+            const marketClose = 15 * 60 + 30;
+            const isMarketOpen = (day >= 1 && day <= 5) && (currentTime >= marketOpen && currentTime <= marketClose);
+            
+            // Load NIFTY 50
             fetch('/api/nifty-price')
                 .then(response => response.json())
                 .then(data => {
                     const price = data.price;
+                    let change = isMarketOpen ? (Math.random() - 0.5) * 2 : (data.change || 0);
+                    let changePercent = (change / price * 100);
                     
-                    // Check if market is open (9:15 AM to 3:30 PM IST, Mon-Fri)
-                    const now = new Date();
-                    const day = now.getDay(); // 0 = Sunday, 6 = Saturday
-                    const hour = now.getHours();
-                    const minute = now.getMinutes();
-                    const currentTime = hour * 60 + minute;
-                    const marketOpen = 9 * 60 + 15; // 9:15 AM
-                    const marketClose = 15 * 60 + 30; // 3:30 PM
+                    document.getElementById('niftyIndexPrice').textContent = '₹' + price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const changeElement = document.getElementById('niftyIndexChange');
+                    changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+                    changeElement.style.color = change >= 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
                     
-                    const isMarketOpen = (day >= 1 && day <= 5) && (currentTime >= marketOpen && currentTime <= marketClose);
-                    
-                    let change, changePercent;
-                    if (isMarketOpen) {
-                        // Show live fluctuations during market hours
-                        change = (Math.random() - 0.5) * 2;
-                        changePercent = (change / price * 100);
-                    } else {
-                        // Show static closing data when market is closed
-                        change = data.change || 0; // Use API change if available, else 0
-                        changePercent = data.changePercent || 0;
-                    }
-                    
-                    document.getElementById('indexPrice').textContent = '₹' + price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    
-                    const changeElement = document.getElementById('indexChange');
-                    const changeText = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
-                    changeElement.textContent = changeText;
-                    changeElement.style.color = change >= 0 ? '#27ae60' : '#e74c3c';
-                    
-                    // Update market info
-                    document.getElementById('marketStatus').textContent = isMarketOpen ? 'Open' : 'Closed';
-                    document.getElementById('marketStatus').style.color = isMarketOpen ? '#27ae60' : '#e74c3c';
-                    
-                    document.getElementById('lastUpdated').textContent = isMarketOpen ? 'Live' : 'Previous Close';
-                    
-                    const dayLow = (price - 50).toFixed(2);
-                    const dayHigh = (price + 50).toFixed(2);
-                    document.getElementById('dayRange').textContent = `₹${dayLow} - ₹${dayHigh}`;
+                    // Calculate NIFTY day range
+                    const niftyLow = (price - 50).toFixed(2);
+                    const niftyHigh = (price + 50).toFixed(2);
+                    document.getElementById('niftyDayRange').textContent = `₹${niftyLow} - ₹${niftyHigh}`;
                 });
+            
+            // Load Bank Nifty (simulated)
+            const bankNiftyPrice = 51250 + (Math.random() - 0.5) * 100;
+            const bankNiftyChange = isMarketOpen ? (Math.random() - 0.5) * 3 : -0.5;
+            const bankNiftyChangePercent = (bankNiftyChange / bankNiftyPrice * 100);
+            document.getElementById('bankniftyIndexPrice').textContent = '₹' + bankNiftyPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const bankNiftyChangeElement = document.getElementById('bankniftyIndexChange');
+            bankNiftyChangeElement.textContent = `${bankNiftyChange >= 0 ? '+' : ''}${bankNiftyChange.toFixed(2)} (${bankNiftyChangePercent >= 0 ? '+' : ''}${bankNiftyChangePercent.toFixed(2)}%)`;
+            bankNiftyChangeElement.style.color = bankNiftyChange >= 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
+            
+            // Calculate Bank Nifty day range
+            const bankNiftyLow = (bankNiftyPrice - 150).toFixed(2);
+            const bankNiftyHigh = (bankNiftyPrice + 150).toFixed(2);
+            document.getElementById('bankniftyDayRange').textContent = `₹${bankNiftyLow} - ₹${bankNiftyHigh}`;
+            
+            // Load India VIX (simulated)
+            const vixPrice = 13.5 + (Math.random() - 0.5) * 2;
+            const vixChange = isMarketOpen ? (Math.random() - 0.5) * 1.5 : 0.2;
+            const vixChangePercent = (vixChange / vixPrice * 100);
+            document.getElementById('vixIndexPrice').textContent = vixPrice.toFixed(2);
+            const vixChangeElement = document.getElementById('vixIndexChange');
+            vixChangeElement.textContent = `${vixChange >= 0 ? '+' : ''}${vixChange.toFixed(2)} (${vixChangePercent >= 0 ? '+' : ''}${vixChangePercent.toFixed(2)}%)`;
+            vixChangeElement.style.color = vixChange >= 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
+            
+            // Load Sensex (simulated)
+            const sensexPrice = 81200 + (Math.random() - 0.5) * 200;
+            const sensexChange = isMarketOpen ? (Math.random() - 0.5) * 4 : 1.2;
+            const sensexChangePercent = (sensexChange / sensexPrice * 100);
+            document.getElementById('sensexIndexPrice').textContent = '₹' + sensexPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const sensexChangeElement = document.getElementById('sensexIndexChange');
+            sensexChangeElement.textContent = `${sensexChange >= 0 ? '+' : ''}${sensexChange.toFixed(2)} (${sensexChangePercent >= 0 ? '+' : ''}${sensexChangePercent.toFixed(2)}%)`;
+            sensexChangeElement.style.color = sensexChange >= 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
+            
+            // Calculate Sensex day range
+            const sensexLow = (sensexPrice - 200).toFixed(2);
+            const sensexHigh = (sensexPrice + 200).toFixed(2);
+            document.getElementById('sensexDayRange').textContent = `₹${sensexLow} - ₹${sensexHigh}`;
+            
+            // Update market info
+            document.getElementById('marketStatus').textContent = isMarketOpen ? 'Open' : 'Closed';
+            document.getElementById('marketStatus').style.color = isMarketOpen ? '#27ae60' : '#e74c3c';
+            document.getElementById('lastUpdated').textContent = isMarketOpen ? 'Live' : 'Previous Close';
         }
         
-        function openNiftyChart() {
-            // Open TradingView chart for NIFTY 50 with 5-minute timeframe
-            const chartUrl = 'https://in.tradingview.com/chart/?symbol=NSE%3ANIFTY&interval=5';
+        function openChart(index) {
+            let symbol;
+            switch(index) {
+                case 'NIFTY':
+                    symbol = 'NSE:NIFTY';
+                    break;
+                case 'BANKNIFTY':
+                    symbol = 'NSE:BANKNIFTY';
+                    break;
+                case 'VIX':
+                    symbol = 'NSE:INDIAVIX';
+                    break;
+                case 'SENSEX':
+                    symbol = 'BSE:SENSEX';
+                    break;
+                default:
+                    symbol = 'NSE:NIFTY';
+            }
+            const chartUrl = `https://in.tradingview.com/chart/?symbol=${symbol}&interval=5`;
             window.open(chartUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
         }
         
@@ -548,6 +878,24 @@
                 loadIndexData();
             } else if (tabName === 'strategies') {
                 loadStrategies();
+            } else if (tabName === 'profile') {
+                updateProfileData();
+            } else if (tabName === 'options') {
+                fetch('/api/real-options')
+                    .then(response => response.json())
+                    .then(data => {
+                        options = data;
+                        displayOptions(data);
+                    })
+                    .catch(() => {
+                        // Fallback to simulated data if real API fails
+                        fetch('/api/options?atm=true')
+                            .then(response => response.json())
+                            .then(data => {
+                                options = data;
+                                displayOptions(data);
+                            });
+                    });
             }
         }
 
@@ -680,34 +1028,125 @@
             const grid = document.getElementById('optionsGrid');
             grid.innerHTML = '';
             
+            if (options.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 30px;">No options found. Try searching or refresh the chain.</p>';
+                return;
+            }
+            
+            // Get current NIFTY price for classification
+            fetch('/api/nifty-price')
+                .then(response => response.json())
+                .then(data => {
+                    const niftyPrice = data.price;
+                    
+                    // Separate options by moneyness
+                    const ceOptions = options.filter(opt => opt.type === 'CE').sort((a, b) => a.strike - b.strike);
+                    const peOptions = options.filter(opt => opt.type === 'PE').sort((a, b) => a.strike - b.strike);
+                    
+                    // Create organized display
+                    grid.innerHTML = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%;">
+                            <div>
+                                <h4 style="color: #27ae60; margin-bottom: 15px; text-align: center; padding: 10px; background: #e8f5e8; border-radius: 8px;">CALL OPTIONS (CE)</h4>
+                                <div id="ceOptionsContainer"></div>
+                            </div>
+                            <div>
+                                <h4 style="color: #e74c3c; margin-bottom: 15px; text-align: center; padding: 10px; background: #ffe8e8; border-radius: 8px;">PUT OPTIONS (PE)</h4>
+                                <div id="peOptionsContainer"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    displayOptionsList(ceOptions, 'ceOptionsContainer', niftyPrice, 'CE');
+                    displayOptionsList(peOptions, 'peOptionsContainer', niftyPrice, 'PE');
+                });
+        }
+        
+        function getLastTuesdayOfMonth(year, month) {
+            // Get last day of month
+            const lastDay = new Date(year, month + 1, 0);
+            // Find last Tuesday (day 2 = Tuesday)
+            const lastTuesday = new Date(lastDay);
+            lastTuesday.setDate(lastDay.getDate() - ((lastDay.getDay() + 5) % 7));
+            return lastTuesday;
+        }
+        
+        function getOrdinalNumber(num) {
+            const suffixes = ['th', 'st', 'nd', 'rd'];
+            const value = num % 100;
+            return num + (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]);
+        }
+        
+        function displayOptionsList(options, containerId, niftyPrice, optionType) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
             options.forEach(opt => {
-                const card = document.createElement('div');
-                card.className = 'stock-card';
-                card.innerHTML = `
-                    <div class="stock-header">
-                        <div>
-                            <div class="stock-symbol">${opt.strike} ${opt.type}</div>
-                            <div style="font-size: 13px; color: #7f8c8d; font-weight: 500;">Exp: ${opt.expiry} • IV: ${(opt.iv * 100).toFixed(1)}%</div>
+                // Calculate realistic option price
+                const isITM = (optionType === 'CE' && opt.strike < niftyPrice) || (optionType === 'PE' && opt.strike > niftyPrice);
+                const isATM = Math.abs(opt.strike - niftyPrice) <= 50;
+                const moneyness = isATM ? 'ATM' : (isITM ? 'ITM' : 'OTM');
+                
+                // Use actual option price from API data
+                const actualPrice = opt.price || 0;
+                
+                const optionRow = document.createElement('div');
+                const bgColor = isATM ? '#fff3cd' : (isITM ? '#d4edda' : '#f8f9fa');
+                const borderColor = isATM ? '#ffc107' : (isITM ? '#28a745' : '#6c757d');
+                
+                optionRow.style.cssText = `
+                    display: flex; justify-content: space-between; align-items: center; 
+                    padding: 12px; margin-bottom: 8px; background: ${bgColor}; border-radius: 8px; 
+                    border-left: 4px solid ${borderColor};
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
+                `;
+                
+                // Format expiry date for NIFTY Tuesday expiries
+                const expiryDate = new Date(opt.expiry);
+                const day = expiryDate.getDate();
+                const month = expiryDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+                
+                // Check if this is the last Tuesday of the month (monthly expiry)
+                const lastTuesdayOfMonth = getLastTuesdayOfMonth(expiryDate.getFullYear(), expiryDate.getMonth());
+                const isMonthlyExpiry = day === lastTuesdayOfMonth.getDate();
+                
+                let displaySymbol;
+                if (isMonthlyExpiry) {
+                    // Monthly expiry format: NIFTY DEC 22000 CE
+                    displaySymbol = `NIFTY ${month} ${opt.strike} ${optionType}`;
+                } else {
+                    // Weekly expiry format: NIFTY 11th w NOV 25450 CE
+                    const ordinalDay = getOrdinalNumber(day);
+                    displaySymbol = `NIFTY ${ordinalDay} w ${month} ${opt.strike} ${optionType}`;
+                }
+                
+                optionRow.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 3px; font-size: 13px;">
+                            ${displaySymbol}
+                            <span style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: ${isATM ? '#ffc107' : (isITM ? '#28a745' : '#6c757d')}; color: white; margin-left: 8px;">${moneyness}</span>
                         </div>
-                        <div class="stock-price ${opt.change >= 0 ? 'positive' : 'negative'}">
-                            ₹${opt.price}
+                        <div style="font-size: 11px; color: #7f8c8d;">
+                            Δ: ${opt.delta.toFixed(2)} | IV: ${(opt.iv * 100).toFixed(1)}% | Exp: ${expiryDate.toLocaleDateString('en-IN')}
                         </div>
                     </div>
-                    <div class="${opt.change >= 0 ? 'positive' : 'negative'}" style="margin-bottom: 12px; font-weight: 600;">
-                        ${opt.change >= 0 ? '+' : ''}${opt.change}%
+                    <div style="text-align: right;">
+                        <div style="font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 3px;">
+                            ₹${actualPrice.toFixed(2)}
+                        </div>
+                        <div style="font-size: 11px; color: ${opt.change >= 0 ? '#27ae60' : '#e74c3c'};">
+                            ${opt.change >= 0 ? '+' : ''}${opt.change.toFixed(1)}%
+                        </div>
                     </div>
-                    <div class="greeks-row">
-                        <div class="greek-item">Δ ${opt.delta.toFixed(2)}</div>
-                        <div class="greek-item">Γ ${opt.gamma.toFixed(3)}</div>
-                        <div class="greek-item">Θ ${opt.theta.toFixed(1)}</div>
-                        <div class="greek-item">ν ${opt.vega.toFixed(1)}</div>
-                    </div>
-                    <div class="stock-actions">
-                        <button class="btn btn-buy" onclick="openTradeModal('${opt.symbol}', ${opt.price}, 'buy')">Buy</button>
-                        <button class="btn btn-sell" onclick="openTradeModal('${opt.symbol}', ${opt.price}, 'sell')">Sell</button>
+                    <div style="margin-left: 15px;">
+                        <button onclick="openTradeModal('${opt.symbol}', ${actualPrice.toFixed(2)}, 'buy')" 
+                                style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; margin-right: 5px; cursor: pointer;">Buy</button>
+                        <button onclick="openTradeModal('${opt.symbol}', ${actualPrice.toFixed(2)}, 'sell')" 
+                                style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Sell</button>
                     </div>
                 `;
-                grid.appendChild(card);
+                
+                container.appendChild(optionRow);
             });
         }
 
@@ -767,21 +1206,30 @@
 
         function searchOptions() {
             const searchTerm = document.getElementById('optionSearch').value;
-            fetch(`/api/options?search=${encodeURIComponent(searchTerm)}&atm=false`)
-                .then(response => response.json())
-                .then(data => {
-                    options = data;
-                    displayOptions(data);
-                });
+            // Filter from loaded real options data
+            const filteredOptions = options.filter(opt => 
+                opt.symbol.includes(searchTerm.toUpperCase()) || 
+                opt.strike.toString().includes(searchTerm) ||
+                opt.type.includes(searchTerm.toUpperCase())
+            );
+            displayOptions(filteredOptions);
         }
 
         function showATMOptions() {
             document.getElementById('optionSearch').value = '';
-            fetch('/api/options?atm=true')
+            fetch('/api/real-options')
                 .then(response => response.json())
                 .then(data => {
                     options = data;
                     displayOptions(data);
+                })
+                .catch(() => {
+                    fetch('/api/options?atm=true')
+                        .then(response => response.json())
+                        .then(data => {
+                            options = data;
+                            displayOptions(data);
+                        });
                 });
         }
 
@@ -991,16 +1439,107 @@
         
         function updateStrategyDescription() {
             const strategyType = document.getElementById('strategyType').value;
+            const customOptions = document.getElementById('customStrategyOptions');
+            
             const descriptions = {
                 'long_straddle': 'Buy ATM Call + Buy ATM Put. Profit from high volatility in either direction. Limited risk, unlimited reward.',
                 'short_straddle': 'Sell ATM Call + Sell ATM Put. Profit from low volatility. High risk, limited reward. Requires margin.',
                 'long_strangle': 'Buy OTM Call + Buy OTM Put. Cheaper than straddle, needs larger moves. Limited risk, unlimited reward.',
                 'short_strangle': 'Sell OTM Call + Sell OTM Put. Profit from range-bound movement. High risk, limited reward.',
                 'iron_condor': 'Sell Call Spread + Sell Put Spread. Profit from low volatility. Limited risk and reward.',
-                'butterfly': 'Buy 1 ITM Call + Sell 2 ATM Calls + Buy 1 OTM Call. Profit from minimal movement. Limited risk and reward.'
+                'butterfly': 'Buy 1 ITM Call + Sell 2 ATM Calls + Buy 1 OTM Call. Profit from minimal movement. Limited risk and reward.',
+                'custom': 'Create your own strategy with custom stop loss and target settings. Define risk management based on capital deployed or total portfolio value.'
             };
+            
             document.getElementById('strategyDescription').textContent = descriptions[strategyType];
+            
+            // Show/hide custom strategy options
+            const customOptionsRow2 = document.getElementById('customStrategyOptionsRow2');
+            if (strategyType === 'custom') {
+                customOptions.style.display = 'block';
+                customOptionsRow2.style.display = 'block';
+            } else {
+                customOptions.style.display = 'none';
+                customOptionsRow2.style.display = 'none';
+            }
         }
+        
+        // Modal drag functionality
+        let isStrategyDragging = false;
+        let isFundsDragging = false;
+        let isWithdrawDragging = false;
+        let strategyDragOffset = { x: 0, y: 0 };
+        let fundsDragOffset = { x: 0, y: 0 };
+        let withdrawDragOffset = { x: 0, y: 0 };
+        
+        // Strategy modal drag
+        document.querySelector('#strategyModal .modal-header').addEventListener('mousedown', function(e) {
+            isStrategyDragging = true;
+            const modal = document.querySelector('#strategyModal .modal-content');
+            const rect = modal.getBoundingClientRect();
+            strategyDragOffset.x = e.clientX - rect.left;
+            strategyDragOffset.y = e.clientY - rect.top;
+            modal.classList.add('dragging');
+        });
+        
+        // Add Funds modal drag
+        document.querySelector('#addFundsModal .modal-header').addEventListener('mousedown', function(e) {
+            isFundsDragging = true;
+            const modal = document.querySelector('#addFundsModal .modal-content');
+            const rect = modal.getBoundingClientRect();
+            fundsDragOffset.x = e.clientX - rect.left;
+            fundsDragOffset.y = e.clientY - rect.top;
+            modal.classList.add('dragging');
+        });
+        
+        // Withdraw Funds modal drag
+        document.querySelector('#withdrawFundsModal .modal-header').addEventListener('mousedown', function(e) {
+            isWithdrawDragging = true;
+            const modal = document.querySelector('#withdrawFundsModal .modal-content');
+            const rect = modal.getBoundingClientRect();
+            withdrawDragOffset.x = e.clientX - rect.left;
+            withdrawDragOffset.y = e.clientY - rect.top;
+            modal.classList.add('dragging');
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isStrategyDragging) {
+                const modal = document.querySelector('#strategyModal .modal-content');
+                modal.style.position = 'fixed';
+                modal.style.left = (e.clientX - strategyDragOffset.x) + 'px';
+                modal.style.top = (e.clientY - strategyDragOffset.y) + 'px';
+                modal.style.margin = '0';
+            }
+            if (isFundsDragging) {
+                const modal = document.querySelector('#addFundsModal .modal-content');
+                modal.style.position = 'fixed';
+                modal.style.left = (e.clientX - fundsDragOffset.x) + 'px';
+                modal.style.top = (e.clientY - fundsDragOffset.y) + 'px';
+                modal.style.margin = '0';
+            }
+            if (isWithdrawDragging) {
+                const modal = document.querySelector('#withdrawFundsModal .modal-content');
+                modal.style.position = 'fixed';
+                modal.style.left = (e.clientX - withdrawDragOffset.x) + 'px';
+                modal.style.top = (e.clientY - withdrawDragOffset.y) + 'px';
+                modal.style.margin = '0';
+            }
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isStrategyDragging) {
+                isStrategyDragging = false;
+                document.querySelector('#strategyModal .modal-content').classList.remove('dragging');
+            }
+            if (isFundsDragging) {
+                isFundsDragging = false;
+                document.querySelector('#addFundsModal .modal-content').classList.remove('dragging');
+            }
+            if (isWithdrawDragging) {
+                isWithdrawDragging = false;
+                document.querySelector('#withdrawFundsModal .modal-content').classList.remove('dragging');
+            }
+        });
         
         document.getElementById('strategyForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -1013,6 +1552,13 @@
                 lots: parseInt(document.getElementById('strategyLots').value),
                 maxLossPercent: parseFloat(document.getElementById('maxLossPercent').value)
             };
+            
+            // Add custom strategy options if selected
+            if (document.getElementById('strategyType').value === 'custom') {
+                formData.stopLossType = document.getElementById('stopLossType').value;
+                formData.stopLossPercent = parseFloat(document.getElementById('stopLossPercent').value);
+                formData.targetProfit = parseFloat(document.getElementById('targetProfit').value);
+            }
             
             fetch('/api/create-strategy', {
                 method: 'POST',
@@ -1059,14 +1605,47 @@
                             <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${strategy.name}</h4>
                             <p style="margin: 0; color: #7f8c8d; font-size: 14px;">${strategy.type.replace('_', ' ').toUpperCase()} • Max Loss: ${strategy.maxLossPercent}%</p>
                         </div>
-                        <div>
-                            <span class="btn" style="background: ${strategy.status === 'active' ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 12px; font-size: 12px; margin-right: 10px;">${strategy.status}</span>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <span class="btn" style="background: ${strategy.status === 'active' ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 12px; font-size: 12px;">${strategy.status}</span>
+                            ${strategy.status === 'active' ? `<button class="btn btn-buy" onclick="placeStrategyOrder(${strategy.id})" style="padding: 4px 12px; font-size: 12px;">Place Order</button>` : ''}
                             <button class="btn btn-sell" onclick="deleteStrategy(${strategy.id})" style="padding: 4px 8px; font-size: 12px;">Delete</button>
                         </div>
                     </div>
                 `;
                 strategiesList.appendChild(strategyCard);
             });
+        }
+        
+        function placeStrategyOrder(strategyId) {
+            if (confirm('Place orders for this strategy in live market?')) {
+                fetch(`/api/place-strategy-order/${strategyId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadStrategies();
+                        // Refresh F&O portfolio to show new positions
+                        fetch('/api/fo-portfolio')
+                            .then(response => response.json())
+                            .then(portfolioData => {
+                                displayFOPortfolio(portfolioData);
+                            });
+                        // Refresh balance
+                        fetch('/api/balance')
+                            .then(response => response.json())
+                            .then(balanceData => {
+                                document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            });
+                        alert(`✅ ${data.message}`);
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
         }
         
         function deleteStrategy(strategyId) {
@@ -1086,13 +1665,253 @@
             }
         }
 
+        // Initialize user profile and theme
+        let selectedPaymentMethod = '';
+        
+        // Set user initial from session username
+        if (typeof username !== 'undefined') {
+            document.getElementById('userInitial').textContent = username.charAt(0).toUpperCase();
+        }
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('themeToggle').checked = true;
+        }
+        
         // Check if SEBI disclosure was already accepted in this session
         if (sessionStorage.getItem('sebiAccepted') === 'true') {
             document.getElementById('sebiModal').style.display = 'none';
         }
+        
+
+        
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            
+            // Update profile theme toggle
+            const profileThemeToggle = document.getElementById('profileThemeToggle');
+            if (profileThemeToggle) profileThemeToggle.checked = newTheme === 'dark';
+            
+            localStorage.setItem('theme', newTheme);
+        }
+        
+        function openUserProfile() {
+            // Switch to profile tab
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Find and activate profile tab
+            const profileTab = Array.from(document.querySelectorAll('.tab')).find(tab => tab.textContent.trim() === 'Profile');
+            if (profileTab) {
+                profileTab.classList.add('active');
+                document.getElementById('profile').classList.add('active');
+                updateProfileData();
+            }
+        }
+        
+        function updateProfileData() {
+            // Update profile information
+            const username = typeof window.username !== 'undefined' ? window.username : 'User';
+            document.getElementById('profileUserName').textContent = username;
+            document.getElementById('profileInitial').textContent = username.charAt(0).toUpperCase();
+            
+            // Update balance
+            fetch('/api/balance')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('profileBalance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+            
+            // Update active positions count
+            fetch('/api/fo-portfolio')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('activePositions').textContent = data.length;
+                });
+            
+            // Sync theme toggle
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            document.getElementById('profileThemeToggle').checked = isDark;
+        }
+        
+        function showTransactionHistory() {
+            alert('📄 Transaction History feature coming soon!');
+        }
+        
+        function openAddFunds() {
+            document.getElementById('addFundsModal').style.display = 'block';
+        }
+        
+        function openWithdrawFunds() {
+            document.getElementById('withdrawFundsModal').style.display = 'block';
+            // Update available balance
+            fetch('/api/balance')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('availableBalance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+        }
+        
+        function closeAddFunds() {
+            document.getElementById('addFundsModal').style.display = 'none';
+            document.getElementById('fundAmount').value = '';
+            selectedPaymentMethod = '';
+            // Reset payment option styles
+            document.querySelectorAll('.payment-option').forEach(option => {
+                option.style.borderColor = 'var(--border-color)';
+                option.style.background = 'transparent';
+            });
+        }
+        
+        function closeWithdrawFunds() {
+            document.getElementById('withdrawFundsModal').style.display = 'none';
+            document.getElementById('withdrawAmount').value = '';
+        }
+        
+        function setAmount(amount) {
+            const currentAmount = parseFloat(document.getElementById('fundAmount').value) || 0;
+            document.getElementById('fundAmount').value = currentAmount + amount;
+        }
+        
+        function setWithdrawAmount(amount) {
+            const currentAmount = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+            document.getElementById('withdrawAmount').value = currentAmount + amount;
+        }
+        
+        function setWithdrawAllAmount() {
+            const availableBalance = parseFloat(document.getElementById('availableBalance').textContent.replace(/,/g, ''));
+            document.getElementById('withdrawAmount').value = availableBalance;
+        }
+        
+        function selectPayment(method) {
+            selectedPaymentMethod = method;
+            // Reset all payment options
+            document.querySelectorAll('.payment-option').forEach(option => {
+                option.style.borderColor = 'var(--border-color)';
+                option.style.background = 'transparent';
+            });
+            // Highlight selected option
+            event.currentTarget.style.borderColor = '#3498db';
+            event.currentTarget.style.background = 'rgba(52, 152, 219, 0.1)';
+        }
+        
+        function processFundAddition() {
+            const amount = parseFloat(document.getElementById('fundAmount').value);
+            
+            if (!amount || amount < 100) {
+                alert('⚠️ Please enter a valid amount (minimum ₹100)');
+                return;
+            }
+            
+            if (!selectedPaymentMethod) {
+                alert('⚠️ Please select a payment method');
+                return;
+            }
+            
+            // Simulate payment processing
+            const paymentMethods = {
+                'upi': 'UPI Payment',
+                'phonepe': 'PhonePe',
+                'gpay': 'Google Pay',
+                'netbanking': 'Net Banking'
+            };
+            
+            if (confirm(`Proceed with ${paymentMethods[selectedPaymentMethod]} payment of ₹${amount.toLocaleString('en-IN')}?`)) {
+                // Call API to add funds
+                fetch('/api/add-funds', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        paymentMethod: selectedPaymentMethod
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closeAddFunds();
+                        // Refresh balance
+                        fetch('/api/balance')
+                            .then(response => response.json())
+                            .then(balanceData => {
+                                document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            });
+                        alert(`✅ ₹${amount.toLocaleString('en-IN')} added successfully to your wallet!`);
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
+        }
+        
+
+        
+        function processWithdrawal() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            
+            if (!amount || amount < 100) {
+                alert('⚠️ Please enter a valid amount (minimum ₹100)');
+                return;
+            }
+            
+            if (confirm(`Withdraw ₹${amount.toLocaleString('en-IN')} from your wallet?\n\nFunds will be credited to your registered bank account within 2-3 business days.`)) {
+                // Call API to withdraw funds
+                fetch('/api/withdraw-funds', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: amount
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closeWithdrawFunds();
+                        // Refresh balance
+                        fetch('/api/balance')
+                            .then(response => response.json())
+                            .then(balanceData => {
+                                document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            });
+                        alert(`✅ ${data.message}`);
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
+        }
 
         loadData();
-        setInterval(loadData, 5000);
+        
+        // Only refresh balance and portfolio data, not options chain
+        setInterval(() => {
+            fetch('/api/balance')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('balance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+
+            fetch('/api/fo-portfolio')
+                .then(response => response.json())
+                .then(data => {
+                    displayFOPortfolio(data);
+                });
+
+            fetch('/api/nifty-price')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('niftyPrice').textContent = data.price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+        }, 10000); // Reduced frequency to 10 seconds
     </script>
 </body>
 </html>

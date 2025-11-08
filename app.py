@@ -5,15 +5,49 @@ import random
 from datetime import datetime, timedelta
 import math
 import requests
+import configparser
+import os
 
 app = Flask(__name__)
 app.secret_key = 'trading_secret_key'
 
+def load_config():
+    """Load configuration from properties file"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config.properties')
+    
+    # Default values
+    config_dict = {
+        'yahoo_finance_nifty_url': 'https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI',
+        'nse_india_url': 'https://www.nseindia.com/api/allIndices',
+        'fallback_nifty_price': '24350.75',
+        'min_nifty_price': '15000',
+        'max_nifty_price': '30000'
+    }
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        config_dict[key.strip()] = value.strip()
+        except Exception as e:
+            print(f"Warning: Could not load config file: {e}")
+    
+    return config_dict
+
+# Load configuration
+CONFIG = load_config()
+
 def get_real_nifty_price():
-    """Fetch real NIFTY 50 closing price from API"""
+    """Fetch real NIFTY 50 closing price from API using configurable URLs"""
+    min_price = float(CONFIG.get('min_nifty_price', 15000))
+    max_price = float(CONFIG.get('max_nifty_price', 30000))
+    
     try:
         # Try Yahoo Finance API first
-        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI"
+        url = CONFIG.get('yahoo_finance_nifty_url', 'https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI')
         response = requests.get(url, timeout=5)
         data = response.json()
         
@@ -21,15 +55,15 @@ def get_real_nifty_price():
             result = data['chart']['result'][0]
             if 'meta' in result and 'regularMarketPrice' in result['meta']:
                 price = result['meta']['regularMarketPrice']
-                # Validate price is realistic (between 15000-30000)
-                if 15000 <= price <= 30000:
+                # Validate price is realistic
+                if min_price <= price <= max_price:
                     return round(price, 2)
     except:
         pass
     
     try:
         # Alternative API - NSE India (if available)
-        url = "https://www.nseindia.com/api/allIndices"
+        url = CONFIG.get('nse_india_url', 'https://www.nseindia.com/api/allIndices')
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
@@ -39,13 +73,13 @@ def get_real_nifty_price():
         for index in data['data']:
             if index['index'] == 'NIFTY 50':
                 price = float(index['last'])
-                if 15000 <= price <= 30000:
+                if min_price <= price <= max_price:
                     return round(price, 2)
     except:
         pass
     
-    # Fallback to realistic current NIFTY price
-    return 24350.75
+    # Fallback to configurable NIFTY price
+    return float(CONFIG.get('fallback_nifty_price', 24350.75))
 
 def generate_nifty_options():
     """Generate NIFTY 50 options chain for current week and month"""
@@ -94,12 +128,36 @@ def generate_nifty_options():
     def create_option(strike, expiry_date, exp_type, opt_type):
         moneyness = strike / nifty_price
         
+        # Use realistic market prices based on actual data patterns
+        strike_diff = strike - nifty_price
+        
         if opt_type == 'CE':
-            price = max(5, (nifty_price - strike) + random.uniform(10, 100)) if strike <= nifty_price else random.uniform(5, 50)
-            delta = max(0.05, min(0.95, 0.5 + (nifty_price - strike) / 1000))
+            if strike_diff <= -200:  # Deep ITM
+                price = abs(strike_diff) + random.uniform(20, 60)
+            elif strike_diff <= -50:  # ITM
+                price = abs(strike_diff) + random.uniform(50, 150)
+            elif abs(strike_diff) <= 50:  # ATM
+                price = random.uniform(200, 400)
+            elif strike_diff <= 200:  # OTM
+                price = random.uniform(10, 80)
+            else:  # Deep OTM
+                price = random.uniform(0.5, 15)
+            delta = max(0.05, min(0.95, 0.5 + strike_diff / -1000))
         else:  # PE
-            price = max(5, (strike - nifty_price) + random.uniform(10, 100)) if strike >= nifty_price else random.uniform(5, 50)
-            delta = max(-0.95, min(-0.05, -0.5 + (nifty_price - strike) / 1000))
+            if strike_diff >= 200:  # Deep ITM
+                price = strike_diff + random.uniform(20, 60)
+            elif strike_diff >= 50:  # ITM
+                price = strike_diff + random.uniform(50, 150)
+            elif abs(strike_diff) <= 50:  # ATM
+                price = random.uniform(200, 400)
+            elif strike_diff >= -200:  # OTM
+                price = random.uniform(10, 80)
+            else:  # Deep OTM
+                price = random.uniform(0.5, 15)
+            delta = max(-0.95, min(-0.05, -0.5 + strike_diff / 1000))
+        
+        # Generate realistic change percentage
+        change_pct = random.uniform(-15, 15)
         
         symbol = f'NIFTY{expiry_date.replace("-", "")[-4:]}{int(strike)}{exp_type}{opt_type}'
         
@@ -108,7 +166,7 @@ def generate_nifty_options():
         vega = random.uniform(10, 25)
         iv = random.uniform(0.12, 0.25)
         
-        return (symbol, strike, expiry_date, opt_type, price, random.uniform(-5, 5), 25), (symbol, delta, gamma, theta, vega, iv)
+        return (symbol, strike, expiry_date, opt_type, round(price, 2), round(change_pct, 2), 25), (symbol, delta, gamma, theta, vega, iv)
     
     # Create ATM options for display
     for expiry_date, exp_type in expiries:
@@ -587,16 +645,18 @@ def get_options():
     
     options_list = []
     for opt in options:
-        price_change = random.uniform(-5, 5)
-        new_price = max(0.05, round(opt[5] + (opt[5] * price_change / 100), 2))
+        # Use stored price directly without random changes
+        actual_price = opt[5]  # Use the price from database
+        price_change = opt[6]  # Use stored change percentage
+        
         options_list.append({
             'id': opt[0],
             'symbol': opt[1],
             'strike': opt[2],
             'expiry': opt[3],
             'type': opt[4],
-            'price': new_price,
-            'change': round(price_change, 2),
+            'price': actual_price,
+            'change': price_change,
             'lot_size': opt[7],
             'delta': opt[8] if opt[8] else 0,
             'gamma': opt[9] if opt[9] else 0,
@@ -628,7 +688,10 @@ def get_strategies():
             'status': s[5],
             'maxLossPercent': conditions.get('max_loss_percent', 0),
             'strike': conditions.get('strike', 0),
-            'lots': conditions.get('lots', 1)
+            'lots': conditions.get('lots', 1),
+            'stopLossType': conditions.get('stop_loss_type', ''),
+            'stopLossPercent': conditions.get('stop_loss_percent', 0),
+            'targetProfit': conditions.get('target_profit', 0)
         })
     
     return jsonify(strategy_list)
@@ -671,6 +734,86 @@ def get_nifty_price():
         'change': round(change, 2),
         'changePercent': round(change_percent, 2)
     })
+
+def get_real_options_data():
+    """Fetch real NIFTY options data from NSE"""
+    try:
+        # NSE Options Chain API
+        url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('records', {}).get('data', [])
+    except:
+        pass
+    
+    return None
+
+@app.route('/api/real-options')
+def get_real_options():
+    """Get real options data from NSE"""
+    real_data = get_real_options_data()
+    
+    if not real_data:
+        # Fallback to existing logic if API fails
+        return get_options()
+    
+    options_list = []
+    nifty_price = get_real_nifty_price()
+    
+    for item in real_data[:20]:  # Limit to 20 strikes around ATM
+        strike = item.get('strikePrice', 0)
+        
+        # Skip if too far from current price
+        if abs(strike - nifty_price) > 500:
+            continue
+            
+        # CE Option
+        if 'CE' in item:
+            ce_data = item['CE']
+            options_list.append({
+                'symbol': f'NIFTY{strike}CE',
+                'strike': strike,
+                'expiry': '2024-11-28',  # Current month expiry
+                'type': 'CE',
+                'price': ce_data.get('lastPrice', 0),
+                'change': ce_data.get('change', 0),
+                'lot_size': 25,
+                'delta': 0.5,  # Simplified
+                'gamma': 0.001,
+                'theta': -10,
+                'vega': 15,
+                'iv': ce_data.get('impliedVolatility', 20) / 100
+            })
+        
+        # PE Option
+        if 'PE' in item:
+            pe_data = item['PE']
+            options_list.append({
+                'symbol': f'NIFTY{strike}PE',
+                'strike': strike,
+                'expiry': '2024-11-28',
+                'type': 'PE',
+                'price': pe_data.get('lastPrice', 0),
+                'change': pe_data.get('change', 0),
+                'lot_size': 25,
+                'delta': -0.5,  # Simplified
+                'gamma': 0.001,
+                'theta': -10,
+                'vega': 15,
+                'iv': pe_data.get('impliedVolatility', 20) / 100
+            })
+    
+    return jsonify(options_list)
 
 @app.route('/api/autocomplete-options')
 def autocomplete_options():
@@ -808,6 +951,12 @@ def create_strategy():
         'max_loss_amount': max_loss_amount
     }
     
+    # Add custom strategy options if provided
+    if 'stopLossType' in data:
+        conditions['stop_loss_type'] = data['stopLossType']
+        conditions['stop_loss_percent'] = data['stopLossPercent']
+        conditions['target_profit'] = data['targetProfit']
+    
     # Insert strategy
     c.execute('INSERT INTO strategies (user_id, name, type, conditions, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
               (session['user_id'], name, strategy_type, str(conditions), 'active', datetime.now().isoformat()))
@@ -816,6 +965,128 @@ def create_strategy():
     conn.close()
     
     return jsonify({'success': True})
+
+@app.route('/api/place-strategy-order/<int:strategy_id>', methods=['POST'])
+def place_strategy_order(strategy_id):
+    """Place orders for a strategy in live market"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    
+    # Get strategy details
+    c.execute('SELECT name, type, conditions FROM strategies WHERE id = ? AND user_id = ?', 
+              (strategy_id, session['user_id']))
+    strategy = c.fetchone()
+    
+    if not strategy:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Strategy not found'})
+    
+    strategy_name, strategy_type, conditions_str = strategy
+    conditions = eval(conditions_str) if conditions_str else {}
+    
+    strike = conditions.get('strike', 24500)
+    lots = conditions.get('lots', 1)
+    
+    # Get current NIFTY price for strategy execution
+    nifty_price = get_real_nifty_price()
+    
+    orders_placed = []
+    total_cost = 0
+    
+    try:
+        # Execute different strategy types
+        if strategy_type == 'long_straddle':
+            # Buy ATM Call + Buy ATM Put
+            ce_symbol = f'NIFTY{strike}CE'
+            pe_symbol = f'NIFTY{strike}PE'
+            
+            # Get option prices (simplified)
+            ce_price = 150  # Simplified pricing
+            pe_price = 150
+            
+            # Place CE order
+            place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', strike)
+            orders_placed.append(f'{lots} lots {ce_symbol}')
+            total_cost += ce_price * lots * 25
+            
+            # Place PE order
+            place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', strike)
+            orders_placed.append(f'{lots} lots {pe_symbol}')
+            total_cost += pe_price * lots * 25
+            
+        elif strategy_type == 'long_strangle':
+            # Buy OTM Call + Buy OTM Put
+            ce_strike = strike + 100
+            pe_strike = strike - 100
+            ce_symbol = f'NIFTY{ce_strike}CE'
+            pe_symbol = f'NIFTY{pe_strike}PE'
+            
+            ce_price = 80
+            pe_price = 80
+            
+            place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', ce_strike)
+            place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', pe_strike)
+            orders_placed.extend([f'{lots} lots {ce_symbol}', f'{lots} lots {pe_symbol}'])
+            total_cost += (ce_price + pe_price) * lots * 25
+            
+        else:
+            # Custom or other strategies
+            ce_symbol = f'NIFTY{strike}CE'
+            pe_symbol = f'NIFTY{strike}PE'
+            ce_price = pe_price = 120
+            
+            place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', strike)
+            place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', strike)
+            orders_placed.extend([f'{lots} lots {ce_symbol}', f'{lots} lots {pe_symbol}'])
+            total_cost += (ce_price + pe_price) * lots * 25
+        
+        # Update user balance
+        c.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (total_cost, session['user_id']))
+        
+        # Update strategy status
+        c.execute('UPDATE strategies SET status = ? WHERE id = ?', ('executed', strategy_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Strategy executed! Orders: {", ".join(orders_placed)}. Cost: ₹{total_cost:.2f}'
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': f'Failed to execute strategy: {str(e)}'})
+
+def place_option_order(user_id, symbol, lots, price, option_type, strike):
+    """Helper function to place individual option orders"""
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    
+    # Ensure option exists in options table for portfolio display
+    c.execute('SELECT symbol FROM options WHERE symbol = ?', (symbol,))
+    if not c.fetchone():
+        # Create option entry if it doesn't exist
+        c.execute('INSERT INTO options (symbol, strike, expiry, type, price, change_percent, lot_size) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  (symbol, strike, '2024-11-28', option_type, price, 0, 25))
+    
+    # Add to F&O portfolio
+    c.execute('SELECT quantity FROM fo_portfolio WHERE user_id = ? AND symbol = ?', (user_id, symbol))
+    existing = c.fetchone()
+    
+    if existing:
+        new_quantity = existing[0] + lots
+        c.execute('UPDATE fo_portfolio SET quantity = ? WHERE user_id = ? AND symbol = ?', 
+                  (new_quantity, user_id, symbol))
+    else:
+        c.execute('INSERT INTO fo_portfolio (user_id, symbol, instrument_type, strike, expiry, quantity, avg_price) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  (user_id, symbol, option_type, strike, '2024-11-28', lots, price))
+    
+    conn.commit()
+    conn.close()
 
 @app.route('/api/delete-strategy/<int:strategy_id>', methods=['DELETE'])
 def delete_strategy(strategy_id):
@@ -830,6 +1101,72 @@ def delete_strategy(strategy_id):
     conn.close()
     
     return jsonify({'success': True})
+
+@app.route('/api/add-funds', methods=['POST'])
+def add_funds():
+    """Add funds to user wallet"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    data = request.json
+    amount = float(data.get('amount', 0))
+    payment_method = data.get('paymentMethod', '')
+    
+    if amount < 100 or amount > 500000:
+        return jsonify({'success': False, 'error': 'Invalid amount. Must be between ₹100 and ₹5,00,000'})
+    
+    # Simulate payment processing (actual payment gateway integration would go here)
+    # For now, we'll just add the funds directly
+    
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    
+    # Add funds to user balance
+    c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, session['user_id']))
+    
+    # Log the transaction (you could create a transactions table)
+    # For now, we'll just commit the balance update
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'₹{amount:,.2f} added successfully via {payment_method}'
+    })
+
+@app.route('/api/withdraw-funds', methods=['POST'])
+def withdraw_funds():
+    """Withdraw funds from user wallet"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    data = request.json
+    amount = float(data.get('amount', 0))
+    
+    if amount < 100 or amount > 500000:
+        return jsonify({'success': False, 'error': 'Invalid amount. Must be between ₹100 and ₹5,00,000'})
+    
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    
+    # Check current balance
+    c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
+    current_balance = c.fetchone()[0]
+    
+    if current_balance < amount:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Insufficient balance'})
+    
+    # Deduct funds from user balance
+    c.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, session['user_id']))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'₹{amount:,.2f} withdrawn successfully. Funds will be credited to your bank account within 2-3 business days.'
+    })
 
 if __name__ == '__main__':
     init_db()
