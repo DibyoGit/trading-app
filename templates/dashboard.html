@@ -991,17 +991,27 @@
             
             portfolio.forEach(item => {
                 const row = document.createElement('tr');
+                const pnlClass = item.pnl >= 0 ? 'positive' : 'negative';
+                const pnlIcon = item.pnl >= 0 ? '▲' : '▼';
+                
                 row.innerHTML = `
                     <td style="font-weight: 600;">${item.symbol}</td>
                     <td>${item.strike}</td>
                     <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: ${item.type === 'CE' ? '#e8f5e8' : '#ffe8e8'}; color: ${item.type === 'CE' ? '#27ae60' : '#e74c3c'};">${item.type}</span></td>
                     <td>${item.quantity * item.lot_size} <small style="color: #7f8c8d;">(${item.quantity})</small></td>
                     <td>₹${item.avg_price.toFixed(2)}</td>
-                    <td>₹${item.current_price.toFixed(2)}</td>
-                    <td class="${item.pnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">₹${item.pnl}</td>
-                    <td class="${item.pnl_percent >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${item.pnl_percent}%</td>
+                    <td class="live-price" style="font-weight: 600;">₹${item.current_price.toFixed(2)}</td>
+                    <td class="${pnlClass} live-pnl" style="font-weight: 600;">${pnlIcon} ₹${Math.abs(item.pnl)}</td>
+                    <td class="${pnlClass} live-pnl" style="font-weight: 600;">${item.pnl_percent >= 0 ? '+' : ''}${item.pnl_percent}%</td>
                     <td><button class="btn btn-sell" onclick="exitPosition('${item.symbol}', ${item.quantity})" style="padding: 4px 8px; font-size: 12px;">Exit</button></td>
                 `;
+                
+                // Add flash effect for live updates
+                row.style.transition = 'background-color 0.3s ease';
+                row.style.backgroundColor = item.pnl >= 0 ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)';
+                setTimeout(() => {
+                    row.style.backgroundColor = 'transparent';
+                }, 1000);
                 tbody.appendChild(row);
             });
         }
@@ -1812,7 +1822,10 @@
         }
         
         function processFundAddition() {
+            console.log('processFundAddition called');
             const amount = parseFloat(document.getElementById('fundAmount').value);
+            console.log('Amount:', amount);
+            console.log('Selected payment method:', selectedPaymentMethod);
             
             if (!amount || amount < 100) {
                 alert('⚠️ Please enter a valid amount (minimum ₹100)');
@@ -1824,7 +1837,6 @@
                 return;
             }
             
-            // Simulate payment processing
             const paymentMethods = {
                 'upi': 'UPI Payment',
                 'phonepe': 'PhonePe',
@@ -1833,7 +1845,7 @@
             };
             
             if (confirm(`Proceed with ${paymentMethods[selectedPaymentMethod]} payment of ₹${amount.toLocaleString('en-IN')}?`)) {
-                // Call API to add funds
+                console.log('Making API call to add funds');
                 fetch('/api/add-funds', {
                     method: 'POST',
                     headers: {
@@ -1844,21 +1856,35 @@
                         paymentMethod: selectedPaymentMethod
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('API response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Add funds response:', data);
                     if (data.success) {
                         closeAddFunds();
-                        // Refresh balance
+                        // Force balance refresh
                         fetch('/api/balance')
                             .then(response => response.json())
                             .then(balanceData => {
+                                console.log('Updated balance:', balanceData.balance);
                                 document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             });
-                        alert(`✅ ₹${amount.toLocaleString('en-IN')} added successfully to your wallet!`);
+                        // Show success notification
+                        setTimeout(() => {
+                            alert(`🎉 SUCCESS!\n\n${data.message}\n\nYour wallet balance has been updated.`);
+                        }, 100);
                     } else {
                         alert('❌ ' + data.error);
                     }
+                })
+                .catch(error => {
+                    console.error('Error adding funds:', error);
+                    alert('❌ Error processing payment');
                 });
+            } else {
+                console.log('User cancelled payment');
             }
         }
         
@@ -1873,7 +1899,6 @@
             }
             
             if (confirm(`Withdraw ₹${amount.toLocaleString('en-IN')} from your wallet?\n\nFunds will be credited to your registered bank account within 2-3 business days.`)) {
-                // Call API to withdraw funds
                 fetch('/api/withdraw-funds', {
                     method: 'POST',
                     headers: {
@@ -1885,18 +1910,27 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Withdraw funds response:', data);
                     if (data.success) {
                         closeWithdrawFunds();
-                        // Refresh balance
+                        // Force balance refresh
                         fetch('/api/balance')
                             .then(response => response.json())
                             .then(balanceData => {
+                                console.log('Updated balance:', balanceData.balance);
                                 document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             });
-                        alert(`✅ ${data.message}`);
+                        // Show success notification
+                        setTimeout(() => {
+                            alert(`✅ WITHDRAWAL SUCCESSFUL!\n\n${data.message}\n\nYour wallet balance has been updated.`);
+                        }, 100);
                     } else {
                         alert('❌ ' + data.error);
                     }
+                })
+                .catch(error => {
+                    console.error('Error withdrawing funds:', error);
+                    alert('❌ Error processing withdrawal');
                 });
             }
         }
@@ -1929,7 +1963,7 @@
 
         loadData();
         
-        // Only refresh balance and portfolio data, not options chain
+        // Basic data updates - reduced frequency to prevent database locks
         setInterval(() => {
             // Update market status
             fetch('/api/market-status')
@@ -1937,24 +1971,25 @@
                 .then(data => {
                     updateMarketStatus(data);
                 });
+            
             fetch('/api/balance')
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('balance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                });
-
-            fetch('/api/fo-portfolio')
-                .then(response => response.json())
-                .then(data => {
-                    displayFOPortfolio(data);
+                })
+                .catch(error => {
+                    console.log('Balance update failed:', error);
                 });
 
             fetch('/api/nifty-price')
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('niftyPrice').textContent = data.price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                })
+                .catch(error => {
+                    console.log('NIFTY price update failed:', error);
                 });
-        }, 10000); // Reduced frequency to 10 seconds
+        }, 30000); // Update every 30 seconds to reduce database load
     </script>
 </body>
 </html>

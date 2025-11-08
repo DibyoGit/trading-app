@@ -443,13 +443,16 @@ def get_balance():
     if 'user_id' not in session:
         return jsonify({'balance': 0})
     
-    conn = sqlite3.connect('trading.db')
-    c = conn.cursor()
-    c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
-    balance = c.fetchone()[0]
-    conn.close()
-    
-    return jsonify({'balance': balance})
+    try:
+        conn = sqlite3.connect('trading.db', timeout=10)
+        c = conn.cursor()
+        c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
+        result = c.fetchone()
+        balance = result[0] if result else 0
+        conn.close()
+        return jsonify({'balance': balance})
+    except Exception as e:
+        return jsonify({'balance': 0, 'error': str(e)})
 
 @app.route('/api/buy', methods=['POST'])
 def buy_stock():
@@ -649,15 +652,18 @@ def get_fo_portfolio():
     if 'user_id' not in session:
         return jsonify([])
     
-    conn = sqlite3.connect('trading.db')
-    c = conn.cursor()
-    c.execute('''SELECT fp.symbol, fp.quantity, fp.avg_price, fp.strike, fp.expiry, fp.instrument_type,
-                        o.price as current_price, o.lot_size
-                 FROM fo_portfolio fp 
-                 JOIN options o ON fp.symbol = o.symbol 
-                 WHERE fp.user_id = ?''', (session['user_id'],))
-    portfolio = c.fetchall()
-    conn.close()
+    try:
+        conn = sqlite3.connect('trading.db', timeout=10)
+        c = conn.cursor()
+        c.execute('''SELECT fp.symbol, fp.quantity, fp.avg_price, fp.strike, fp.expiry, fp.instrument_type,
+                            o.price as current_price, o.lot_size
+                     FROM fo_portfolio fp 
+                     JOIN options o ON fp.symbol = o.symbol 
+                     WHERE fp.user_id = ?''', (session['user_id'],))
+        portfolio = c.fetchall()
+        conn.close()
+    except Exception as e:
+        return jsonify({'error': str(e)})
     
     portfolio_list = []
     for item in portfolio:
@@ -675,7 +681,9 @@ def get_fo_portfolio():
             'current_price': item[6],
             'lot_size': item[7],
             'pnl': round(pnl, 2),
-            'pnl_percent': round((pnl / invested_value) * 100, 2) if invested_value > 0 else 0
+            'pnl_percent': round((pnl / invested_value) * 100, 2) if invested_value > 0 else 0,
+            'total_value': round(current_value, 2),
+            'invested_value': round(invested_value, 2)
         })
     
     return jsonify(portfolio_list)
@@ -1264,30 +1272,39 @@ def add_funds():
         return jsonify({'success': False, 'error': 'Not logged in'})
     
     data = request.json
+    print(f"Add funds request: {data}")
     amount = float(data.get('amount', 0))
     payment_method = data.get('paymentMethod', '')
     
     if amount < 100 or amount > 500000:
+        print(f"Add funds: Invalid amount {amount}")
         return jsonify({'success': False, 'error': 'Invalid amount. Must be between ₹100 and ₹5,00,000'})
     
-    # Simulate payment processing (actual payment gateway integration would go here)
-    # For now, we'll just add the funds directly
-    
-    conn = sqlite3.connect('trading.db')
-    c = conn.cursor()
-    
-    # Add funds to user balance
-    c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, session['user_id']))
-    
-    # Log the transaction (you could create a transactions table)
-    # For now, we'll just commit the balance update
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        'success': True, 
-        'message': f'₹{amount:,.2f} added successfully via {payment_method}'
-    })
+    try:
+        conn = sqlite3.connect('trading.db', timeout=10)
+        c = conn.cursor()
+        # Check current balance before update
+        c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
+        old_balance = c.fetchone()[0]
+        print(f"Old balance: {old_balance}")
+        
+        c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, session['user_id']))
+        
+        # Check new balance after update
+        c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
+        new_balance = c.fetchone()[0]
+        print(f"New balance: {new_balance}")
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"Add funds successful: {amount} added via {payment_method}")
+        return jsonify({
+            'success': True, 
+            'message': f'₹{amount:,.2f} added successfully via {payment_method}'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
 
 @app.route('/api/withdraw-funds', methods=['POST'])
 def withdraw_funds():
@@ -1301,27 +1318,30 @@ def withdraw_funds():
     if amount < 100 or amount > 500000:
         return jsonify({'success': False, 'error': 'Invalid amount. Must be between ₹100 and ₹5,00,000'})
     
-    conn = sqlite3.connect('trading.db')
-    c = conn.cursor()
-    
-    # Check current balance
-    c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
-    current_balance = c.fetchone()[0]
-    
-    if current_balance < amount:
+    try:
+        conn = sqlite3.connect('trading.db', timeout=10)
+        c = conn.cursor()
+        
+        # Check current balance
+        c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
+        result = c.fetchone()
+        current_balance = result[0] if result else 0
+        
+        if current_balance < amount:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Insufficient balance'})
+        
+        # Deduct funds from user balance
+        c.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, session['user_id']))
+        conn.commit()
         conn.close()
-        return jsonify({'success': False, 'error': 'Insufficient balance'})
-    
-    # Deduct funds from user balance
-    c.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, session['user_id']))
-    
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        'success': True, 
-        'message': f'₹{amount:,.2f} withdrawn successfully. Funds will be credited to your bank account within 2-3 business days.'
-    })
+        
+        return jsonify({
+            'success': True, 
+            'message': f'₹{amount:,.2f} withdrawn successfully. Funds will be credited to your bank account within 2-3 business days.'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
 
 @app.route('/api/update-lot-sizes', methods=['POST'])
 def update_lot_sizes():
@@ -1343,6 +1363,15 @@ def update_lot_sizes():
     return jsonify({
         'success': True, 
         'message': f'Updated all NIFTY options and futures to lot size {nifty_lot_size}'
+    })
+
+@app.route('/api/update-option-prices', methods=['POST'])
+def update_option_prices():
+    """Update option prices with realistic fluctuations - DISABLED to prevent database locks"""
+    # Disabled to prevent database locking issues during fund operations
+    return jsonify({
+        'success': True, 
+        'message': 'Option price updates disabled to prevent database locks'
     })
 
 if __name__ == '__main__':
