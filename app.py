@@ -1285,14 +1285,22 @@ def add_funds():
         c = conn.cursor()
         # Check current balance before update
         c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
-        old_balance = c.fetchone()[0]
+        result = c.fetchone()
+        if not result:
+            conn.close()
+            return jsonify({'success': False, 'error': 'User not found'})
+        old_balance = result[0]
         print(f"Old balance: {old_balance}")
         
         c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, session['user_id']))
         
         # Check new balance after update
         c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
-        new_balance = c.fetchone()[0]
+        balance_result = c.fetchone()
+        if not balance_result:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Failed to update balance'})
+        new_balance = balance_result[0]
         print(f"New balance: {new_balance}")
         
         conn.commit()

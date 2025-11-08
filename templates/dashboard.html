@@ -1745,7 +1745,9 @@
             fetch('/api/balance')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('profileBalance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const balance = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('profileBalance').textContent = balance;
+                    document.getElementById('balance').textContent = balance;
                 });
             
             // Update active positions count
@@ -1869,7 +1871,12 @@
                             .then(response => response.json())
                             .then(balanceData => {
                                 console.log('Updated balance:', balanceData.balance);
-                                document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                const formattedBalance = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                document.getElementById('balance').textContent = formattedBalance;
+                                const profileBalance = document.getElementById('profileBalance');
+                                if (profileBalance) {
+                                    profileBalance.textContent = formattedBalance;
+                                }
                             });
                         // Show success notification
                         setTimeout(() => {
@@ -1918,7 +1925,12 @@
                             .then(response => response.json())
                             .then(balanceData => {
                                 console.log('Updated balance:', balanceData.balance);
-                                document.getElementById('balance').textContent = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                const formattedBalance = balanceData.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                document.getElementById('balance').textContent = formattedBalance;
+                                const profileBalance = document.getElementById('profileBalance');
+                                if (profileBalance) {
+                                    profileBalance.textContent = formattedBalance;
+                                }
                             });
                         // Show success notification
                         setTimeout(() => {
@@ -1975,7 +1987,12 @@
             fetch('/api/balance')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('balance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const balance = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('balance').textContent = balance;
+                    const profileBalance = document.getElementById('profileBalance');
+                    if (profileBalance) {
+                        profileBalance.textContent = balance;
+                    }
                 })
                 .catch(error => {
                     console.log('Balance update failed:', error);
