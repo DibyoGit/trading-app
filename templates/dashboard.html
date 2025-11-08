@@ -98,6 +98,10 @@
     <div class="header">
         <h1>OptionsPaye</h1>
         <div style="display: flex; align-items: center; gap: 20px;">
+            <div id="marketStatusDisplay" style="display: flex; align-items: center; gap: 10px; background: var(--bg-secondary); padding: 10px 16px; border-radius: 25px; border: 1px solid var(--border-color);">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #27ae60;" id="marketStatusDot"></div>
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);" id="marketStatusText">Market Open</span>
+            </div>
             <button onclick="toggleChatBot()" class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 10px 18px; border-radius: 25px; font-size: 14px; border: none; font-weight: 500;">🤖 AI Assistant</button>
             <div style="display: flex; align-items: center; gap: 15px; background: var(--bg-secondary); padding: 12px 20px; border-radius: 30px; border: 1px solid var(--border-color);">
                 <span class="balance" style="font-weight: 600; color: var(--text-primary);">Balance: ₹<span id="balance">0</span></span>
@@ -124,7 +128,7 @@
                             <th>Symbol</th>
                             <th>Strike</th>
                             <th>Type</th>
-                            <th>Lots</th>
+                            <th>Quantity</th>
                             <th>Avg Price</th>
                             <th>Current Price</th>
                             <th>P&L</th>
@@ -355,7 +359,7 @@
                 <div class="form-group">
                     <label>Lots:</label>
                     <input type="number" id="tradeQuantity" min="1" value="1" required onchange="calculateMargin()">
-                    <small style="color: #7f8c8d;">1 lot = <span id="lotSize">25</span> quantity</small>
+                    <small style="color: #7f8c8d;">1 lot = <span id="lotSize">75</span> quantity</small>
                 </div>
                 <div class="form-group">
                     <label>Price per unit:</label>
@@ -900,6 +904,13 @@
         }
 
         function loadData() {
+            // Load market status
+            fetch('/api/market-status')
+                .then(response => response.json())
+                .then(data => {
+                    updateMarketStatus(data);
+                });
+
             fetch('/api/balance')
                 .then(response => response.json())
                 .then(data => {
@@ -984,7 +995,7 @@
                     <td style="font-weight: 600;">${item.symbol}</td>
                     <td>${item.strike}</td>
                     <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: ${item.type === 'CE' ? '#e8f5e8' : '#ffe8e8'}; color: ${item.type === 'CE' ? '#27ae60' : '#e74c3c'};">${item.type}</span></td>
-                    <td>${item.quantity}</td>
+                    <td>${item.quantity * item.lot_size} <small style="color: #7f8c8d;">(${item.quantity})</small></td>
                     <td>₹${item.avg_price.toFixed(2)}</td>
                     <td>₹${item.current_price.toFixed(2)}</td>
                     <td class="${item.pnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">₹${item.pnl}</td>
@@ -1603,7 +1614,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${strategy.name}</h4>
-                            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">${strategy.type.replace('_', ' ').toUpperCase()} • Max Loss: ${strategy.maxLossPercent}%</p>
+                            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">${strategy.type.replace('_', ' ').toUpperCase()} • Max Loss: ${strategy.maxLossPercent}% • Executed: ${strategy.execution_count || 0} times</p>
                         </div>
                         <div style="display: flex; gap: 5px; align-items: center;">
                             <span class="btn" style="background: ${strategy.status === 'active' ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 12px; font-size: 12px;">${strategy.status}</span>
@@ -1890,10 +1901,42 @@
             }
         }
 
+        function updateMarketStatus(statusData) {
+            const statusDot = document.getElementById('marketStatusDot');
+            const statusText = document.getElementById('marketStatusText');
+            
+            if (statusData.isOpen) {
+                statusDot.style.background = '#27ae60';
+                statusText.textContent = 'Market Open';
+                statusText.style.color = 'var(--text-primary)';
+            } else {
+                statusDot.style.background = '#e74c3c';
+                statusText.textContent = 'Market Closed';
+                statusText.style.color = 'var(--text-secondary)';
+                
+                // Show next opening time if available
+                if (statusData.hoursUntilOpen !== undefined) {
+                    const hours = statusData.hoursUntilOpen;
+                    const minutes = statusData.minutesUntilOpen;
+                    if (hours > 0) {
+                        statusText.textContent = `Closed (Opens in ${hours}h ${minutes}m)`;
+                    } else if (minutes > 0) {
+                        statusText.textContent = `Closed (Opens in ${minutes}m)`;
+                    }
+                }
+            }
+        }
+
         loadData();
         
         // Only refresh balance and portfolio data, not options chain
         setInterval(() => {
+            // Update market status
+            fetch('/api/market-status')
+                .then(response => response.json())
+                .then(data => {
+                    updateMarketStatus(data);
+                });
             fetch('/api/balance')
                 .then(response => response.json())
                 .then(data => {

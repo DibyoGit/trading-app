@@ -7,6 +7,7 @@ import math
 import requests
 import configparser
 import os
+import pytz
 
 app = Flask(__name__)
 app.secret_key = 'trading_secret_key'
@@ -21,7 +22,8 @@ def load_config():
         'nse_india_url': 'https://www.nseindia.com/api/allIndices',
         'fallback_nifty_price': '24350.75',
         'min_nifty_price': '15000',
-        'max_nifty_price': '30000'
+        'max_nifty_price': '30000',
+        'nifty_lot_size': '75'
     }
     
     if os.path.exists(config_path):
@@ -39,6 +41,89 @@ def load_config():
 
 # Load configuration
 CONFIG = load_config()
+
+# Indian market holidays for 2024-2025
+MARKET_HOLIDAYS = {
+    # 2024 holidays
+    '2024-01-26': 'Republic Day',
+    '2024-03-08': 'Holi',
+    '2024-03-29': 'Good Friday',
+    '2024-04-11': 'Id-Ul-Fitr',
+    '2024-04-17': 'Ram Navami',
+    '2024-05-01': 'Maharashtra Day',
+    '2024-06-17': 'Bakri Id',
+    '2024-08-15': 'Independence Day',
+    '2024-10-02': 'Gandhi Jayanti',
+    '2024-11-01': 'Diwali Laxmi Pujan',
+    '2024-11-15': 'Guru Nanak Jayanti',
+    '2024-12-25': 'Christmas',
+    
+    # 2025 holidays
+    '2025-01-26': 'Republic Day',
+    '2025-02-26': 'Holi',
+    '2025-03-31': 'Id-Ul-Fitr',
+    '2025-04-14': 'Ram Navami',
+    '2025-04-18': 'Good Friday',
+    '2025-05-01': 'Maharashtra Day',
+    '2025-06-07': 'Bakri Id',
+    '2025-08-15': 'Independence Day',
+    '2025-10-02': 'Gandhi Jayanti',
+    '2025-10-20': 'Diwali Laxmi Pujan',
+    '2025-11-05': 'Guru Nanak Jayanti',
+    '2025-12-25': 'Christmas'
+}
+
+def is_market_open():
+    """Check if market is currently open"""
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist)
+    
+    # Check if today is a weekend
+    if now.weekday() >= 5:  # Saturday = 5, Sunday = 6
+        return False, "Market closed - Weekend"
+    
+    # Check if today is a holiday
+    today_str = now.strftime('%Y-%m-%d')
+    if today_str in MARKET_HOLIDAYS:
+        return False, f"Market closed - {MARKET_HOLIDAYS[today_str]}"
+    
+    # Check market hours (9:15 AM to 3:30 PM IST)
+    market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
+    market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    
+    if now < market_open:
+        return False, f"Market opens at 9:15 AM (Current: {now.strftime('%H:%M')})"
+    elif now > market_close:
+        return False, f"Market closed at 3:30 PM (Current: {now.strftime('%H:%M')})"
+    
+    return True, "Market is open"
+
+def get_next_market_open():
+    """Get next market opening time"""
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist)
+    
+    # Start with tomorrow if market is closed today
+    next_day = now + timedelta(days=1)
+    
+    # Find next working day
+    while True:
+        # Skip weekends
+        if next_day.weekday() >= 5:
+            next_day += timedelta(days=1)
+            continue
+            
+        # Skip holidays
+        day_str = next_day.strftime('%Y-%m-%d')
+        if day_str in MARKET_HOLIDAYS:
+            next_day += timedelta(days=1)
+            continue
+            
+        # Found next market day
+        break
+    
+    next_open = next_day.replace(hour=9, minute=15, second=0, microsecond=0)
+    return next_open
 
 def get_real_nifty_price():
     """Fetch real NIFTY 50 closing price from API using configurable URLs"""
@@ -166,7 +251,8 @@ def generate_nifty_options():
         vega = random.uniform(10, 25)
         iv = random.uniform(0.12, 0.25)
         
-        return (symbol, strike, expiry_date, opt_type, round(price, 2), round(change_pct, 2), 25), (symbol, delta, gamma, theta, vega, iv)
+        nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
+        return (symbol, strike, expiry_date, opt_type, round(price, 2), round(change_pct, 2), nifty_lot_size), (symbol, delta, gamma, theta, vega, iv)
     
     # Create ATM options for display
     for expiry_date, exp_type in expiries:
@@ -219,7 +305,13 @@ def init_db():
     
     c.execute('''CREATE TABLE IF NOT EXISTS strategies
                  (id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT, type TEXT, 
-                  conditions TEXT, status TEXT, created_at TEXT)''')
+                  conditions TEXT, status TEXT, created_at TEXT, execution_count INTEGER DEFAULT 0)''')
+    
+    # Add execution_count column if it doesn't exist
+    try:
+        c.execute('ALTER TABLE strategies ADD COLUMN execution_count INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     c.execute('''CREATE TABLE IF NOT EXISTS greeks
                  (symbol TEXT PRIMARY KEY, delta REAL, gamma REAL, theta REAL, vega REAL, iv REAL)''')
@@ -237,8 +329,9 @@ def init_db():
     
     c.executemany('INSERT OR REPLACE INTO stocks VALUES (?, ?, ?, ?)', stocks)
     
+    nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
     futures = [
-        ('NIFTY24DEC', 'NIFTY 50', '2024-12-26', 24500.0, 0.8, 25),
+        ('NIFTY24DEC', 'NIFTY 50', '2024-12-26', 24500.0, 0.8, nifty_lot_size),
         ('BANKNIFTY24DEC', 'BANK NIFTY', '2024-12-26', 52000.0, -0.5, 15),
         ('RELIANCE24DEC', 'RELIANCE FUT', '2024-12-26', 2505.0, 1.1, 250)
     ]
@@ -676,16 +769,30 @@ def get_strategies():
     c = conn.cursor()
     c.execute('SELECT * FROM strategies WHERE user_id = ?', (session['user_id'],))
     strategies = c.fetchall()
-    conn.close()
     
     strategy_list = []
     for s in strategies:
         conditions = eval(s[4]) if s[4] else {}  # Parse conditions JSON
+        execution_count = s[7] if len(s) > 7 else 0
+        
+        # Check if strategy has active positions
+        strategy_symbols = get_strategy_symbols(s[0], conditions, s[3])  # Pass strategy type
+        has_active_positions = False
+        for symbol in strategy_symbols:
+            c.execute('SELECT quantity FROM fo_portfolio WHERE user_id = ? AND symbol = ?', (session['user_id'], symbol))
+            if c.fetchone():
+                has_active_positions = True
+                break
+        
+        # Update status based on positions
+        current_status = 'executed' if has_active_positions else 'active'
+        
         strategy_list.append({
             'id': s[0],
             'name': s[2],
             'type': s[3],
-            'status': s[5],
+            'status': current_status,
+            'execution_count': execution_count,
             'maxLossPercent': conditions.get('max_loss_percent', 0),
             'strike': conditions.get('strike', 0),
             'lots': conditions.get('lots', 1),
@@ -694,7 +801,26 @@ def get_strategies():
             'targetProfit': conditions.get('target_profit', 0)
         })
     
+    conn.close()
     return jsonify(strategy_list)
+
+def get_strategy_symbols(strategy_id, conditions, strategy_type=None):
+    """Get expected symbols for a strategy based on its configuration"""
+    strike = conditions.get('strike', 24500)
+    if not strategy_type:
+        strategy_type = conditions.get('type', 'long_straddle')
+    
+    symbols = []
+    if strategy_type in ['long_straddle', 'short_straddle']:
+        symbols = [f'NIFTY{strike}CE', f'NIFTY{strike}PE']
+    elif strategy_type in ['long_strangle', 'short_strangle']:
+        ce_strike = strike + 100
+        pe_strike = strike - 100
+        symbols = [f'NIFTY{ce_strike}CE', f'NIFTY{pe_strike}PE']
+    else:
+        symbols = [f'NIFTY{strike}CE', f'NIFTY{strike}PE']
+    
+    return symbols
 
 @app.route('/api/refresh-options', methods=['POST'])
 def refresh_options():
@@ -787,7 +913,7 @@ def get_real_options():
                 'type': 'CE',
                 'price': ce_data.get('lastPrice', 0),
                 'change': ce_data.get('change', 0),
-                'lot_size': 25,
+                'lot_size': int(CONFIG.get('nifty_lot_size', 75)),
                 'delta': 0.5,  # Simplified
                 'gamma': 0.001,
                 'theta': -10,
@@ -947,6 +1073,7 @@ def create_strategy():
         'strike': strike,
         'expiry': expiry,
         'lots': lots,
+        'type': strategy_type,
         'max_loss_percent': max_loss_percent,
         'max_loss_amount': max_loss_amount
     }
@@ -966,9 +1093,33 @@ def create_strategy():
     
     return jsonify({'success': True})
 
+@app.route('/api/market-status')
+def get_market_status():
+    """Get current market status"""
+    market_open, message = is_market_open()
+    
+    if not market_open:
+        next_open = get_next_market_open()
+        ist = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(ist)
+        time_until_open = next_open - now
+        
+        return jsonify({
+            'isOpen': False,
+            'message': message,
+            'nextOpen': next_open.strftime('%Y-%m-%d %H:%M:%S'),
+            'hoursUntilOpen': int(time_until_open.total_seconds() // 3600),
+            'minutesUntilOpen': int((time_until_open.total_seconds() % 3600) // 60)
+        })
+    
+    return jsonify({
+        'isOpen': True,
+        'message': message
+    })
+
 @app.route('/api/place-strategy-order/<int:strategy_id>', methods=['POST'])
 def place_strategy_order(strategy_id):
-    """Place orders for a strategy in live market"""
+    """Place orders for a strategy (allowed even when market is closed)"""
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'})
     
@@ -976,7 +1127,7 @@ def place_strategy_order(strategy_id):
     c = conn.cursor()
     
     # Get strategy details
-    c.execute('SELECT name, type, conditions FROM strategies WHERE id = ? AND user_id = ?', 
+    c.execute('SELECT * FROM strategies WHERE id = ? AND user_id = ?', 
               (strategy_id, session['user_id']))
     strategy = c.fetchone()
     
@@ -984,7 +1135,8 @@ def place_strategy_order(strategy_id):
         conn.close()
         return jsonify({'success': False, 'error': 'Strategy not found'})
     
-    strategy_name, strategy_type, conditions_str = strategy
+    strategy_name, strategy_type, conditions_str = strategy[2], strategy[3], strategy[4]
+    execution_count = strategy[7] if len(strategy) > 7 and strategy[7] else 0
     conditions = eval(conditions_str) if conditions_str else {}
     
     strike = conditions.get('strike', 24500)
@@ -1010,12 +1162,13 @@ def place_strategy_order(strategy_id):
             # Place CE order
             place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', strike)
             orders_placed.append(f'{lots} lots {ce_symbol}')
-            total_cost += ce_price * lots * 25
+            nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
+            total_cost += ce_price * lots * nifty_lot_size
             
             # Place PE order
             place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', strike)
             orders_placed.append(f'{lots} lots {pe_symbol}')
-            total_cost += pe_price * lots * 25
+            total_cost += pe_price * lots * nifty_lot_size
             
         elif strategy_type == 'long_strangle':
             # Buy OTM Call + Buy OTM Put
@@ -1030,7 +1183,7 @@ def place_strategy_order(strategy_id):
             place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', ce_strike)
             place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', pe_strike)
             orders_placed.extend([f'{lots} lots {ce_symbol}', f'{lots} lots {pe_symbol}'])
-            total_cost += (ce_price + pe_price) * lots * 25
+            total_cost += (ce_price + pe_price) * lots * nifty_lot_size
             
         else:
             # Custom or other strategies
@@ -1041,13 +1194,14 @@ def place_strategy_order(strategy_id):
             place_option_order(session['user_id'], ce_symbol, lots, ce_price, 'CE', strike)
             place_option_order(session['user_id'], pe_symbol, lots, pe_price, 'PE', strike)
             orders_placed.extend([f'{lots} lots {ce_symbol}', f'{lots} lots {pe_symbol}'])
-            total_cost += (ce_price + pe_price) * lots * 25
+            total_cost += (ce_price + pe_price) * lots * nifty_lot_size
         
         # Update user balance
         c.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (total_cost, session['user_id']))
         
-        # Update strategy status
-        c.execute('UPDATE strategies SET status = ? WHERE id = ?', ('executed', strategy_id))
+        # Update strategy execution count and status
+        c.execute('UPDATE strategies SET execution_count = ?, status = ? WHERE id = ?', 
+                  (execution_count + 1, 'executed', strategy_id))
         
         conn.commit()
         conn.close()
@@ -1070,8 +1224,9 @@ def place_option_order(user_id, symbol, lots, price, option_type, strike):
     c.execute('SELECT symbol FROM options WHERE symbol = ?', (symbol,))
     if not c.fetchone():
         # Create option entry if it doesn't exist
+        nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
         c.execute('INSERT INTO options (symbol, strike, expiry, type, price, change_percent, lot_size) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  (symbol, strike, '2024-11-28', option_type, price, 0, 25))
+                  (symbol, strike, '2024-11-28', option_type, price, 0, nifty_lot_size))
     
     # Add to F&O portfolio
     c.execute('SELECT quantity FROM fo_portfolio WHERE user_id = ? AND symbol = ?', (user_id, symbol))
@@ -1168,6 +1323,36 @@ def withdraw_funds():
         'message': f'₹{amount:,.2f} withdrawn successfully. Funds will be credited to your bank account within 2-3 business days.'
     })
 
+@app.route('/api/update-lot-sizes', methods=['POST'])
+def update_lot_sizes():
+    """Update NIFTY options lot sizes to current config value"""
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    
+    nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
+    
+    # Update all NIFTY options to use current lot size
+    c.execute('UPDATE options SET lot_size = ? WHERE symbol LIKE "NIFTY%"', (nifty_lot_size,))
+    
+    # Update futures lot size too
+    c.execute('UPDATE futures SET lot_size = ? WHERE symbol LIKE "NIFTY%"', (nifty_lot_size,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Updated all NIFTY options and futures to lot size {nifty_lot_size}'
+    })
+
 if __name__ == '__main__':
     init_db()
+    # Update lot sizes on startup to ensure consistency
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    nifty_lot_size = int(CONFIG.get('nifty_lot_size', 75))
+    c.execute('UPDATE options SET lot_size = ? WHERE symbol LIKE "NIFTY%"', (nifty_lot_size,))
+    c.execute('UPDATE futures SET lot_size = ? WHERE symbol LIKE "NIFTY%"', (nifty_lot_size,))
+    conn.commit()
+    conn.close()
     app.run(host='0.0.0.0', port=5000, debug=True)
