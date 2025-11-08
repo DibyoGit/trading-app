@@ -472,8 +472,9 @@
                 <button onclick="openAddFunds()" class="btn btn-buy" style="padding: 8px 16px; font-size: 13px;">+ Add Funds</button>
             </div>
             <div class="user-profile" onclick="openUserProfile()" style="position: relative;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--blue-500); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; cursor: pointer; font-size: 14px;">
+                <div id="userAvatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--blue-500); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; cursor: pointer; font-size: 14px; overflow: hidden; border: 2px solid var(--border-color);">
                     <span id="userInitial">U</span>
+                    <img id="userPhoto" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
                 </div>
             </div>
         </div>
@@ -624,8 +625,12 @@
                 <div style="padding: 40px; max-width: 800px; margin: 0 auto;">
                     <div style="background: var(--bg-secondary); border-radius: 20px; padding: 40px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
                         <div style="text-align: center; margin-bottom: 40px;">
-                            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(45deg, #3498db, #2980b9); display: flex; align-items: center; justify-content: center; color: white; font-size: 36px; font-weight: 700; margin: 0 auto 20px; border: 4px solid var(--border-color);">
-                                <span id="profileInitial">U</span>
+                            <div style="position: relative; display: inline-block;">
+                                <div id="profileAvatar" style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(45deg, #3498db, #2980b9); display: flex; align-items: center; justify-content: center; color: white; font-size: 36px; font-weight: 700; margin: 0 auto 20px; border: 4px solid var(--border-color); overflow: hidden; position: relative;">
+                                    <span id="profileInitial">U</span>
+                                    <img id="profilePhoto" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+                                </div>
+                                <button onclick="openPhotoUpload()" style="position: absolute; bottom: 15px; right: -5px; width: 32px; height: 32px; border-radius: 50%; background: var(--blue-500); color: white; border: 2px solid var(--bg-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: var(--shadow);">✏️</button>
                             </div>
                             <h2 style="color: var(--text-primary); margin: 0 0 10px 0;" id="profileUserName">User Profile</h2>
                             <p style="color: var(--text-secondary); margin: 0;">OptionsPaye Premium Trader</p>
@@ -951,6 +956,32 @@
                     <button type="button" class="btn" onclick="closeStrategyModal()" style="background: #95a5a6; color: white; flex: 1; padding: 10px;">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Photo Upload Modal -->
+    <div id="photoUploadModal" class="modal">
+        <div class="modal-content" style="width: 400px; max-width: 95vw;">
+            <div class="modal-header">
+                <h3>Upload Profile Photo</h3>
+                <span class="close" onclick="closePhotoUpload()">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div id="photoPreview" style="width: 120px; height: 120px; border-radius: 50%; background: var(--bg-tertiary); margin: 0 auto; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--border-color); overflow: hidden;">
+                        <span style="color: var(--text-muted); font-size: 14px;">No photo</span>
+                        <img id="previewImage" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <input type="file" id="photoInput" accept="image/*" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary);">
+                    <small style="color: var(--text-secondary); font-size: 12px;">Max size: 5MB. Formats: PNG, JPG, JPEG, GIF, WEBP</small>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="uploadPhoto()" class="btn btn-buy" style="flex: 1;">Upload Photo</button>
+                    <button onclick="removePhoto()" class="btn btn-sell" style="flex: 1;">Remove Photo</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2070,9 +2101,141 @@
         // Initialize user profile and theme
         let selectedPaymentMethod = '';
         
-        // Set user initial from session username
-        if (typeof username !== 'undefined') {
-            document.getElementById('userInitial').textContent = username.charAt(0).toUpperCase();
+        // Load user profile data
+        function loadUserProfile() {
+            fetch('/api/get-profile')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const username = data.username;
+                        const profilePhoto = data.profile_photo;
+                        
+                        // Update header avatar
+                        document.getElementById('userInitial').textContent = username.charAt(0).toUpperCase();
+                        if (profilePhoto) {
+                            document.getElementById('userPhoto').src = profilePhoto;
+                            document.getElementById('userPhoto').style.display = 'block';
+                            document.getElementById('userInitial').style.display = 'none';
+                        }
+                        
+                        // Update profile page
+                        document.getElementById('profileUserName').textContent = username;
+                        document.getElementById('profileInitial').textContent = username.charAt(0).toUpperCase();
+                        if (profilePhoto) {
+                            document.getElementById('profilePhoto').src = profilePhoto;
+                            document.getElementById('profilePhoto').style.display = 'block';
+                            document.getElementById('profileInitial').style.display = 'none';
+                        }
+                    } else {
+                        // Fallback to session username if API fails
+                        const sessionUsername = sessionStorage.getItem('username') || 'User';
+                        document.getElementById('userInitial').textContent = sessionUsername.charAt(0).toUpperCase();
+                        document.getElementById('profileUserName').textContent = sessionUsername;
+                        document.getElementById('profileInitial').textContent = sessionUsername.charAt(0).toUpperCase();
+                    }
+                })
+                .catch(error => {
+                    console.log('Failed to load profile:', error);
+                    // Fallback to session username
+                    const sessionUsername = sessionStorage.getItem('username') || 'User';
+                    document.getElementById('userInitial').textContent = sessionUsername.charAt(0).toUpperCase();
+                    document.getElementById('profileUserName').textContent = sessionUsername;
+                    document.getElementById('profileInitial').textContent = sessionUsername.charAt(0).toUpperCase();
+                });
+        }
+        
+        // Photo upload functions
+        function openPhotoUpload() {
+            document.getElementById('photoUploadModal').style.display = 'block';
+        }
+        
+        function closePhotoUpload() {
+            document.getElementById('photoUploadModal').style.display = 'none';
+            document.getElementById('photoInput').value = '';
+            document.getElementById('previewImage').style.display = 'none';
+            document.getElementById('photoPreview').querySelector('span').style.display = 'block';
+        }
+        
+        // Preview photo before upload
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('photoInput').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('previewImage').src = e.target.result;
+                        document.getElementById('previewImage').style.display = 'block';
+                        document.getElementById('photoPreview').querySelector('span').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+        
+        function uploadPhoto() {
+            const fileInput = document.getElementById('photoInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a photo first');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('photo', file);
+            
+            fetch('/api/upload-photo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update avatars immediately
+                    document.getElementById('userPhoto').src = data.photo_url;
+                    document.getElementById('userPhoto').style.display = 'block';
+                    document.getElementById('userInitial').style.display = 'none';
+                    
+                    document.getElementById('profilePhoto').src = data.photo_url;
+                    document.getElementById('profilePhoto').style.display = 'block';
+                    document.getElementById('profileInitial').style.display = 'none';
+                    
+                    closePhotoUpload();
+                    alert('✅ Profile photo updated successfully!');
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('❌ Upload failed: ' + error.message);
+            });
+        }
+        
+        function removePhoto() {
+            if (confirm('Remove your profile photo?')) {
+                fetch('/api/upload-photo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ remove: true })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset to initials
+                    document.getElementById('userPhoto').style.display = 'none';
+                    document.getElementById('userInitial').style.display = 'block';
+                    
+                    document.getElementById('profilePhoto').style.display = 'none';
+                    document.getElementById('profileInitial').style.display = 'block';
+                    
+                    closePhotoUpload();
+                    alert('✅ Profile photo removed');
+                })
+                .catch(error => {
+                    alert('❌ Failed to remove photo');
+                });
+            }
         }
         
         // Load saved theme
@@ -2117,10 +2280,8 @@
         }
         
         function updateProfileData() {
-            // Update profile information
-            const username = typeof window.username !== 'undefined' ? window.username : 'User';
-            document.getElementById('profileUserName').textContent = username;
-            document.getElementById('profileInitial').textContent = username.charAt(0).toUpperCase();
+            // Load fresh profile data
+            loadUserProfile();
             
             // Update balance
             fetch('/api/balance')
@@ -2353,6 +2514,7 @@
         }
 
         loadData();
+        loadUserProfile();
         
         // Basic data updates - reduced frequency to prevent database locks
         setInterval(() => {

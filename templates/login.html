@@ -48,6 +48,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Store username in sessionStorage for frontend use
+                    if (data.username) {
+                        sessionStorage.setItem('username', data.username);
+                    }
                     window.location.href = '/';
                 } else {
                     document.getElementById('error').textContent = data.error || 'Login failed';

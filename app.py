@@ -280,7 +280,13 @@ def init_db():
     c = conn.cursor()
     
     c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, balance REAL DEFAULT 100000)''')
+                 (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, balance REAL DEFAULT 100000, profile_photo TEXT)''')
+    
+    # Add profile_photo column if it doesn't exist
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN profile_photo TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     c.execute('''CREATE TABLE IF NOT EXISTS stocks
                  (symbol TEXT PRIMARY KEY, name TEXT, price REAL, change_percent REAL)''')
@@ -353,7 +359,7 @@ def init_db():
 def index():
     if 'user_id' not in session:
         return render_template('login.html')
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', username=session.get('username', 'User'))
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -369,7 +375,7 @@ def login():
         session['user_id'] = user[0]
         session['username'] = username
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'username': username})
     
     try:
         c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
@@ -377,7 +383,7 @@ def login():
         session['user_id'] = c.lastrowid
         session['username'] = username
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'username': username})
     except:
         conn.close()
         return jsonify({'success': False, 'error': 'Login failed'})
@@ -1372,6 +1378,69 @@ def update_lot_sizes():
         'success': True, 
         'message': f'Updated all NIFTY options and futures to lot size {nifty_lot_size}'
     })
+
+@app.route('/api/upload-photo', methods=['POST'])
+def upload_photo():
+    """Upload user profile photo"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'error': 'No photo uploaded'})
+    
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No photo selected'})
+    
+    # Check file type
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+        return jsonify({'success': False, 'error': 'Invalid file type. Use PNG, JPG, JPEG, GIF, or WEBP'})
+    
+    # Check file size (max 5MB)
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Reset to beginning
+    
+    if file_size > 5 * 1024 * 1024:  # 5MB
+        return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'})
+    
+    try:
+        import base64
+        # Convert to base64 for storage
+        photo_data = base64.b64encode(file.read()).decode('utf-8')
+        photo_url = f"data:image/{file.filename.rsplit('.', 1)[1].lower()};base64,{photo_data}"
+        
+        conn = sqlite3.connect('trading.db')
+        c = conn.cursor()
+        c.execute('UPDATE users SET profile_photo = ? WHERE id = ?', (photo_url, session['user_id']))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'photo_url': photo_url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'})
+
+@app.route('/api/get-profile')
+def get_profile():
+    """Get user profile data including photo"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    c.execute('SELECT username, profile_photo FROM users WHERE id = ?', (session['user_id'],))
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        return jsonify({
+            'success': True,
+            'username': result[0],
+            'profile_photo': result[1]
+        })
+    
+    return jsonify({'success': False, 'error': 'User not found'})
 
 @app.route('/api/update-option-prices', methods=['POST'])
 def update_option_prices():
