@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OptionsPaye - Options Trading Platform</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .header { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); color: #2c3e50; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 28px; font-weight: 700; color: #2c3e50; }
+        .balance { font-size: 20px; font-weight: 600; color: #27ae60; background: rgba(39,174,96,0.1); padding: 8px 16px; border-radius: 25px; }
+        .logout { background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; padding: 10px 20px; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; }
+        .logout:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(231,76,60,0.4); }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 30px; }
+        .section { background: rgba(255,255,255,0.95); margin-bottom: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); backdrop-filter: blur(10px); overflow: hidden; }
+        .section-header { padding: 20px 30px; border-bottom: 1px solid rgba(0,0,0,0.05); font-weight: 600; font-size: 18px; color: #2c3e50; }
+        .tabs { display: flex; background: rgba(0,0,0,0.02); }
+        .tab { padding: 15px 25px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; color: #7f8c8d; transition: all 0.3s ease; }
+        .tab:hover { background: rgba(0,0,0,0.05); }
+        .tab.active { border-bottom-color: #3498db; background: white; color: #2c3e50; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stocks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; padding: 30px; }
+        .stock-card { background: white; border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; padding: 20px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .stock-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
+        .stock-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .stock-symbol { font-weight: 700; font-size: 18px; color: #2c3e50; }
+        .stock-price { font-size: 22px; font-weight: 700; }
+        .positive { color: #27ae60; }
+        .negative { color: #e74c3c; }
+        .stock-actions { margin-top: 15px; display: flex; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
+        .btn-buy { background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; }
+        .btn-buy:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(39,174,96,0.4); }
+        .btn-sell { background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; }
+        .btn-sell:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(231,76,60,0.4); }
+        .portfolio-table { width: 100%; border-collapse: collapse; }
+        .portfolio-table th, .portfolio-table td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .portfolio-table th { background: rgba(0,0,0,0.02); font-weight: 600; color: #2c3e50; }
+        .portfolio-table tr:hover { background: rgba(0,0,0,0.02); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-content { background: white; margin: 10% auto; padding: 30px; width: 400px; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; cursor: move; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; cursor: move; user-select: none; }
+        .modal-content.dragging { cursor: grabbing; }
+        .modal-header h3 { color: #2c3e50; font-weight: 600; }
+        .close { cursor: pointer; font-size: 28px; color: #95a5a6; transition: color 0.3s ease; }
+        .close:hover { color: #e74c3c; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #2c3e50; }
+        .form-group input { width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease; }
+        .form-group input:focus { outline: none; border-color: #3498db; }
+        .greeks-row { font-size: 12px; color: #7f8c8d; margin-bottom: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .greek-item { background: rgba(0,0,0,0.03); padding: 4px 8px; border-radius: 4px; text-align: center; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }
+        .video-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: pointer; }
+        .video-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+        .video-thumbnail { width: 100%; height: 180px; background-size: cover; background-position: center; position: relative; }
+        .play-button { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255,0,0,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; }
+        .video-info { padding: 20px; }
+        .video-title { font-weight: 600; color: #2c3e50; margin-bottom: 8px; font-size: 16px; line-height: 1.4; }
+        .video-channel { color: #7f8c8d; font-size: 14px; margin-bottom: 5px; }
+        .video-duration { color: #95a5a6; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>OptionsPaye</h1>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button onclick="toggleChatBot()" class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; border: none;">🤖 AI News</button>
+            <span class="balance">Balance: ₹<span id="balance">0</span></span>
+            <a href="/logout" class="logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>F&O Positions</span>
+                <button class="btn btn-sell" onclick="exitAllPositions()" style="padding: 8px 16px; font-size: 14px;">Exit All Positions</button>
+            </div>
+            <div style="padding: 20px;">
+                <table class="portfolio-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Strike</th>
+                            <th>Type</th>
+                            <th>Lots</th>
+                            <th>Avg Price</th>
+                            <th>Current Price</th>
+                            <th>P&L</th>
+                            <th>P&L %</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="foPortfolioBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">Market Watch</div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('options')">Options Chain</div>
+                <div class="tab" onclick="switchTab('futures')">Futures</div>
+                <div class="tab" onclick="switchTab('index')">Index</div>
+                <div class="tab" onclick="switchTab('strategies')">Strategies</div>
+                <div class="tab" onclick="switchTab('learn')">Learn</div>
+            </div>
+            <div id="options" class="tab-content active">
+                <div style="padding: 20px 30px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div>
+                            <h3 style="color: #2c3e50; margin: 0;">NIFTY 50 Options Chain</h3>
+                            <p style="color: #27ae60; margin: 5px 0 0 0; font-size: 16px; font-weight: 600;">Index: ₹<span id="niftyPrice">Loading...</span></p>
+                        </div>
+                        <button class="btn btn-buy" onclick="refreshOptions()" style="padding: 8px 16px; font-size: 14px;">🔄 Refresh</button>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center; position: relative;">
+                        <div style="flex: 1; position: relative;">
+                            <input type="text" id="optionSearch" placeholder="Search options (e.g., 25500 CE, 25600 PE)" style="width: 100%; padding: 10px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
+                            <div id="autocompleteDropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <button class="btn btn-buy" onclick="searchOptions()" style="padding: 10px 20px;">Search</button>
+                        <button class="btn" onclick="showATMOptions()" style="background: #95a5a6; color: white; padding: 10px 20px;">Show ATM</button>
+                    </div>
+                </div>
+                <div class="stocks-grid" id="optionsGrid"></div>
+            </div>
+            <div id="futures" class="tab-content">
+                <div class="stocks-grid" id="futuresGrid"></div>
+            </div>
+            <div id="index" class="tab-content">
+                <div style="padding: 30px;">
+                    <div class="index-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; padding: 30px; margin-bottom: 25px; text-align: center;">
+                        <h2 style="margin: 0 0 10px 0; font-size: 28px;">NIFTY 50</h2>
+                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 10px;" id="indexPrice">Loading...</div>
+                        <div style="font-size: 18px; font-weight: 500;" id="indexChange">--</div>
+                        <div style="margin-top: 20px;">
+                            <button class="btn" onclick="openNiftyChart()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 12px 25px; font-size: 16px; font-weight: 600;">📈 See Chart</button>
+                        </div>
+                    </div>
+                    <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                        <h3 style="color: #2c3e50; margin-bottom: 15px;">Market Information</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Market Status</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #27ae60;" id="marketStatus">Open</div>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Last Updated</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #2c3e50;" id="lastUpdated">--</div>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;">Day Range</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #2c3e50;" id="dayRange">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="strategies" class="tab-content">
+                <div style="padding: 20px;">
+                    <button class="btn btn-buy" onclick="openStrategyModal()" style="margin-bottom: 15px;">+ Create Strategy</button>
+                    <div id="strategiesList"></div>
+                </div>
+            </div>
+            <div id="learn" class="tab-content">
+                <div style="padding: 30px;">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">📚 Learn Options Trading</h3>
+                    <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">Master options trading with these carefully selected educational videos</p>
+                    <div class="video-grid" id="videoGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tradeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Buy Option <small style="color: #7f8c8d; font-weight: normal;">(Drag to move)</small></h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="tradeForm">
+                <div class="form-group">
+                    <label>Symbol:</label>
+                    <input type="text" id="tradeSymbol" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Lots:</label>
+                    <input type="number" id="tradeQuantity" min="1" value="1" required onchange="calculateMargin()">
+                    <small style="color: #7f8c8d;">1 lot = <span id="lotSize">25</span> quantity</small>
+                </div>
+                <div class="form-group">
+                    <label>Price per unit:</label>
+                    <input type="number" id="tradePrice" step="0.01" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Order Type:</label>
+                    <select id="orderType" onchange="calculateMargin()" style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
+                        <option value="NRML">NRML (Normal)</option>
+                        <option value="MIS">MIS (Intraday)</option>
+                    </select>
+                </div>
+                <div style="background: rgba(52,152,219,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Total Quantity:</span>
+                        <span id="totalQuantity">25</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Total Value:</span>
+                        <span id="totalValue">₹0</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: #2c3e50;">
+                        <span>Margin Required:</span>
+                        <span id="marginRequired">₹0</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="tradeButton">Buy</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- AI Chat Assistant -->
+    <div id="chatBot" style="position: fixed; bottom: 20px; right: 20px; width: 350px; height: 500px; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1001; display: none; flex-direction: column;">
+        <div style="background: linear-gradient(45deg, #9b59b6, #8e44ad); color: white; padding: 15px; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0;">🤖 AI Market News</h4>
+            <span onclick="toggleChatBot()" style="cursor: pointer; font-size: 20px;">&times;</span>
+        </div>
+        <div id="chatMessages" style="flex: 1; padding: 15px; overflow-y: auto; background: #f8f9fa;">
+            <div class="chat-message bot-message">
+                <div style="background: #e9ecef; padding: 10px; border-radius: 10px; margin-bottom: 10px;">
+                    <strong>AI Assistant:</strong> Hi! I can help you with market news and updates. Ask me about NIFTY, market trends, or any stock!
+                </div>
+            </div>
+        </div>
+        <div style="padding: 15px; border-top: 1px solid #eee;">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="chatInput" placeholder="Ask about market news..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; font-size: 14px;">
+                <button onclick="sendMessage()" style="background: #9b59b6; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer;">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategy Creation Modal -->
+    <div id="strategyModal" class="modal">
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>Create Options Strategy</h3>
+                <span class="close" onclick="closeStrategyModal()">&times;</span>
+            </div>
+            <form id="strategyForm">
+                <div class="form-group">
+                    <label>Strategy Name:</label>
+                    <input type="text" id="strategyName" placeholder="My Strategy" required>
+                </div>
+                <div class="form-group">
+                    <label>Strategy Type:</label>
+                    <select id="strategyType" onchange="updateStrategyDescription()" style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
+                        <option value="long_straddle">Long Straddle</option>
+                        <option value="short_straddle">Short Straddle</option>
+                        <option value="long_strangle">Long Strangle</option>
+                        <option value="short_strangle">Short Strangle</option>
+                        <option value="iron_condor">Iron Condor</option>
+                        <option value="butterfly">Butterfly Spread</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Strike Price (ATM):</label>
+                    <input type="number" id="strikePrice" placeholder="24500" step="50" required>
+                </div>
+                <div class="form-group">
+                    <label>Expiry Date:</label>
+                    <select id="expiryDate" style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-size: 14px;">
+                        <option value="weekly">Current Week</option>
+                        <option value="monthly">Current Month</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Number of Lots:</label>
+                    <input type="number" id="strategyLots" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Max Loss (% of Capital):</label>
+                    <input type="number" id="maxLossPercent" min="1" max="50" value="5" step="0.5" required>
+                    <small style="color: #7f8c8d;">Maximum loss as percentage of your total capital</small>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Strategy Description:</h4>
+                    <p id="strategyDescription" style="margin: 0; color: #7f8c8d; font-size: 14px; line-height: 1.5;">Select a strategy to see description</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-buy" style="flex: 1;">Create Strategy</button>
+                    <button type="button" class="btn" onclick="closeStrategyModal()" style="background: #95a5a6; color: white; flex: 1;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SEBI Disclosure Modal -->
+    <div id="sebiModal" class="modal" style="display: block;">
+        <div class="modal-content" style="width: 600px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3 style="color: #e74c3c;">⚠️ Risk Disclosures on Derivatives</h3>
+            </div>
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <p style="margin-bottom: 15px; font-weight: 600; color: #856404;">Important SEBI Disclosure:</p>
+                <ul style="margin-left: 20px; color: #856404; line-height: 1.6;">
+                    <li><strong>9 out of 10 individual traders</strong> in equity Futures and Options Segment, incurred net losses.</li>
+                    <li>On an average, <strong>loss makers registered net trading loss close to ₹50,000</strong>.</li>
+                    <li>Over and above the net trading losses incurred, loss makers expended an <strong>additional 28% of net trading losses as transaction costs</strong>.</li>
+                    <li>Those making net trading profits, incurred <strong>between 15% to 50% of such profits as transaction cost</strong>.</li>
+                </ul>
+                <p style="margin-top: 15px; font-size: 12px; color: #6c757d;">Source: SEBI study dated January 25, 2023 on "Analysis of Profit and Loss of Individual Traders dealing in equity Futures and Options (F&O) Segment", wherein Aggregate Level findings are based on annual Profit/Loss incurred by individual traders in equity F&O during FY 2021-22.</p>
+            </div>
+            <div style="text-align: center;">
+                <button class="btn btn-buy" onclick="acceptSebiDisclosure()" style="padding: 12px 30px; font-size: 16px;">I Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAction = '';
+        let stocks = [];
+        let futures = [];
+        let options = [];
+        let currentOption = {};
+        
+        // Educational videos data
+        const educationalVideos = [
+            {
+                id: 'VhwQzVR5a7E',
+                title: 'Options Trading for Beginners - Complete Guide',
+                channel: 'Zerodha Varsity',
+                duration: '45:32'
+            },
+            {
+                id: 'SD7sw0bf1ms',
+                title: 'Understanding Option Greeks - Delta, Gamma, Theta, Vega',
+                channel: 'CA Rachana Ranade',
+                duration: '28:15'
+            },
+            {
+                id: 'ZJjRnKpwDyw',
+                title: 'Options Strategies - Straddle, Strangle, Iron Condor',
+                channel: 'Pranjal Kamra',
+                duration: '35:42'
+            },
+            {
+                id: 'rtVFj-qRhBo',
+                title: 'Risk Management in Options Trading',
+                channel: 'Trade Brains',
+                duration: '22:18'
+            },
+            {
+                id: 'GxmIvvROge4',
+                title: 'How to Read Option Chain - Live Example',
+                channel: 'Stock Edge',
+                duration: '31:25'
+            },
+            {
+                id: 'ZNVQ9kYTASY',
+                title: 'Options Trading Psychology and Discipline',
+                channel: 'Finnovationz',
+                duration: '26:33'
+            }
+        ];
+        
+        function loadEducationalVideos() {
+            const videoGrid = document.getElementById('videoGrid');
+            videoGrid.innerHTML = '';
+            
+            educationalVideos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'video-card';
+                videoCard.onclick = () => openVideo(video.id);
+                
+                videoCard.innerHTML = `
+                    <div class="video-thumbnail" style="background-image: url('https://img.youtube.com/vi/${video.id}/maxresdefault.jpg');">
+                        <div class="play-button">▶</div>
+                    </div>
+                    <div class="video-info">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-channel">${video.channel}</div>
+                        <div class="video-duration">🕒 ${video.duration}</div>
+                    </div>
+                `;
+                
+                videoGrid.appendChild(videoCard);
+            });
+        }
+        
+        function openVideo(videoId) {
+            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+        }
+        
+        function loadIndexData() {
+            fetch('/api/nifty-price')
+                .then(response => response.json())
+                .then(data => {
+                    const price = data.price;
+                    
+                    // Check if market is open (9:15 AM to 3:30 PM IST, Mon-Fri)
+                    const now = new Date();
+                    const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+                    const hour = now.getHours();
+                    const minute = now.getMinutes();
+                    const currentTime = hour * 60 + minute;
+                    const marketOpen = 9 * 60 + 15; // 9:15 AM
+                    const marketClose = 15 * 60 + 30; // 3:30 PM
+                    
+                    const isMarketOpen = (day >= 1 && day <= 5) && (currentTime >= marketOpen && currentTime <= marketClose);
+                    
+                    let change, changePercent;
+                    if (isMarketOpen) {
+                        // Show live fluctuations during market hours
+                        change = (Math.random() - 0.5) * 2;
+                        changePercent = (change / price * 100);
+                    } else {
+                        // Show static closing data when market is closed
+                        change = data.change || 0; // Use API change if available, else 0
+                        changePercent = data.changePercent || 0;
+                    }
+                    
+                    document.getElementById('indexPrice').textContent = '₹' + price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    
+                    const changeElement = document.getElementById('indexChange');
+                    const changeText = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+                    changeElement.textContent = changeText;
+                    changeElement.style.color = change >= 0 ? '#27ae60' : '#e74c3c';
+                    
+                    // Update market info
+                    document.getElementById('marketStatus').textContent = isMarketOpen ? 'Open' : 'Closed';
+                    document.getElementById('marketStatus').style.color = isMarketOpen ? '#27ae60' : '#e74c3c';
+                    
+                    document.getElementById('lastUpdated').textContent = isMarketOpen ? 'Live' : 'Previous Close';
+                    
+                    const dayLow = (price - 50).toFixed(2);
+                    const dayHigh = (price + 50).toFixed(2);
+                    document.getElementById('dayRange').textContent = `₹${dayLow} - ₹${dayHigh}`;
+                });
+        }
+        
+        function openNiftyChart() {
+            // Open TradingView chart for NIFTY 50 with 5-minute timeframe
+            const chartUrl = 'https://in.tradingview.com/chart/?symbol=NSE%3ANIFTY&interval=5';
+            window.open(chartUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+        }
+        
+        function toggleChatBot() {
+            const chatBot = document.getElementById('chatBot');
+            chatBot.style.display = chatBot.style.display === 'none' ? 'flex' : 'none';
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Simulate AI response
+            setTimeout(() => {
+                const response = generateAIResponse(message);
+                addChatMessage(response, 'bot');
+            }, 1000);
+        }
+        
+        function addChatMessage(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}-message`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div style="background: #9b59b6; color: white; padding: 10px; border-radius: 10px; margin-bottom: 10px; margin-left: 50px; text-align: right;">
+                        ${message}
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div style="background: #e9ecef; padding: 10px; border-radius: 10px; margin-bottom: 10px; margin-right: 50px;">
+                        <strong>AI Assistant:</strong> ${message}
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function generateAIResponse(userMessage) {
+            const message = userMessage.toLowerCase();
+            
+            // Market news responses based on keywords
+            if (message.includes('nifty') || message.includes('index')) {
+                return 'NIFTY 50 is currently showing consolidation around key support levels. Market sentiment remains cautious due to global cues. Key levels to watch: Support at 24,200 and resistance at 24,800.';
+            } else if (message.includes('market') || message.includes('news')) {
+                return 'Today\'s market highlights: • FII activity remains mixed • Banking sector showing resilience • IT stocks under pressure due to global concerns • Auto sector gaining momentum on festive demand';
+            } else if (message.includes('options') || message.includes('trading')) {
+                return 'Options trading update: High volatility expected around monthly expiry. PCR ratio suggests bullish sentiment. Consider protective strategies given current market uncertainty.';
+            } else if (message.includes('volatility') || message.includes('vix')) {
+                return 'India VIX is currently elevated, indicating higher market volatility. This creates opportunities for options traders but requires careful risk management.';
+            } else if (message.includes('bank') || message.includes('banking')) {
+                return 'Banking sector news: PSU banks outperforming private banks. Credit growth remains healthy. RBI policy stance continues to support the sector.';
+            } else {
+                const responses = [
+                    'Market is showing mixed signals today. Keep an eye on global cues and domestic developments.',
+                    'Current market trend suggests range-bound movement. Look for breakout opportunities.',
+                    'FII and DII flows are key factors to watch. Domestic institutional support remains strong.',
+                    'Sectoral rotation is happening. Technology and pharma showing relative strength.',
+                    'Earnings season approaching - focus on companies with strong fundamentals.'
+                ];
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+        }
+
+        function calculateMargin() {
+            const lots = parseInt(document.getElementById('tradeQuantity').value) || 1;
+            const price = parseFloat(document.getElementById('tradePrice').value) || 0;
+            const lotSize = parseInt(document.getElementById('lotSize').textContent) || 25;
+            const orderType = document.getElementById('orderType').value;
+            
+            const totalQuantity = lots * lotSize;
+            const totalValue = price * totalQuantity;
+            const margin = orderType === 'NRML' ? totalValue : totalValue * 0.8;
+            
+            document.getElementById('totalQuantity').textContent = totalQuantity;
+            document.getElementById('totalValue').textContent = '₹' + totalValue.toFixed(2);
+            document.getElementById('marginRequired').textContent = '₹' + margin.toFixed(2);
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // Load content when specific tabs are opened
+            if (tabName === 'learn') {
+                loadEducationalVideos();
+            } else if (tabName === 'index') {
+                loadIndexData();
+            } else if (tabName === 'strategies') {
+                loadStrategies();
+            }
+        }
+
+        function loadData() {
+            fetch('/api/balance')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('balance').textContent = data.balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+
+            fetch('/api/stocks')
+                .then(response => response.json())
+                .then(data => {
+                    stocks = data;
+                    displayStocks(data);
+                });
+
+            fetch('/api/futures')
+                .then(response => response.json())
+                .then(data => {
+                    futures = data;
+                    displayFutures(data);
+                });
+
+            fetch('/api/options?atm=true')
+                .then(response => response.json())
+                .then(data => {
+                    options = data;
+                    displayOptions(data);
+                });
+
+            fetch('/api/nifty-price')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('niftyPrice').textContent = data.price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+
+            fetch('/api/fo-portfolio')
+                .then(response => response.json())
+                .then(data => {
+                    displayFOPortfolio(data);
+                });
+        }
+
+        function displayStocks(stocks) {
+            const grid = document.getElementById('stocksGrid');
+            grid.innerHTML = '';
+            
+            stocks.forEach(stock => {
+                const card = document.createElement('div');
+                card.className = 'stock-card';
+                card.innerHTML = `
+                    <div class="stock-header">
+                        <div>
+                            <div class="stock-symbol">${stock.symbol}</div>
+                            <div style="font-size: 12px; color: #666;">${stock.name}</div>
+                        </div>
+                        <div class="stock-price ${stock.change >= 0 ? 'positive' : 'negative'}">
+                            ₹${stock.price}
+                        </div>
+                    </div>
+                    <div class="${stock.change >= 0 ? 'positive' : 'negative'}">
+                        ${stock.change >= 0 ? '+' : ''}${stock.change}%
+                    </div>
+                    <div class="stock-actions">
+                        <button class="btn btn-buy" onclick="openTradeModal('${stock.symbol}', ${stock.price}, 'buy')">Buy</button>
+                        <button class="btn btn-sell" onclick="openTradeModal('${stock.symbol}', ${stock.price}, 'sell')">Sell</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function displayFOPortfolio(portfolio) {
+            const tbody = document.getElementById('foPortfolioBody');
+            tbody.innerHTML = '';
+            
+            if (portfolio.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #7f8c8d; padding: 30px;">No F&O positions yet. Start trading options!</td></tr>';
+                return;
+            }
+            
+            portfolio.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="font-weight: 600;">${item.symbol}</td>
+                    <td>${item.strike}</td>
+                    <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: ${item.type === 'CE' ? '#e8f5e8' : '#ffe8e8'}; color: ${item.type === 'CE' ? '#27ae60' : '#e74c3c'};">${item.type}</span></td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.avg_price.toFixed(2)}</td>
+                    <td>₹${item.current_price.toFixed(2)}</td>
+                    <td class="${item.pnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">₹${item.pnl}</td>
+                    <td class="${item.pnl_percent >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${item.pnl_percent}%</td>
+                    <td><button class="btn btn-sell" onclick="exitPosition('${item.symbol}', ${item.quantity})" style="padding: 4px 8px; font-size: 12px;">Exit</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function displayFutures(futures) {
+            const grid = document.getElementById('futuresGrid');
+            grid.innerHTML = '';
+            
+            futures.forEach(fut => {
+                const card = document.createElement('div');
+                card.className = 'stock-card';
+                card.innerHTML = `
+                    <div class="stock-header">
+                        <div>
+                            <div class="stock-symbol">${fut.symbol}</div>
+                            <div style="font-size: 13px; color: #7f8c8d; font-weight: 500;">${fut.name} • Lot: ${fut.lot_size}</div>
+                        </div>
+                        <div class="stock-price ${fut.change >= 0 ? 'positive' : 'negative'}">
+                            ₹${fut.price.toLocaleString()}
+                        </div>
+                    </div>
+                    <div class="${fut.change >= 0 ? 'positive' : 'negative'}" style="font-weight: 600; margin-bottom: 15px;">
+                        ${fut.change >= 0 ? '+' : ''}${fut.change}%
+                    </div>
+                    <div class="stock-actions">
+                        <button class="btn btn-buy" onclick="openTradeModal('${fut.symbol}', ${fut.price}, 'buy')">Buy</button>
+                        <button class="btn btn-sell" onclick="openTradeModal('${fut.symbol}', ${fut.price}, 'sell')">Sell</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function displayOptions(options) {
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
+            
+            options.forEach(opt => {
+                const card = document.createElement('div');
+                card.className = 'stock-card';
+                card.innerHTML = `
+                    <div class="stock-header">
+                        <div>
+                            <div class="stock-symbol">${opt.strike} ${opt.type}</div>
+                            <div style="font-size: 13px; color: #7f8c8d; font-weight: 500;">Exp: ${opt.expiry} • IV: ${(opt.iv * 100).toFixed(1)}%</div>
+                        </div>
+                        <div class="stock-price ${opt.change >= 0 ? 'positive' : 'negative'}">
+                            ₹${opt.price}
+                        </div>
+                    </div>
+                    <div class="${opt.change >= 0 ? 'positive' : 'negative'}" style="margin-bottom: 12px; font-weight: 600;">
+                        ${opt.change >= 0 ? '+' : ''}${opt.change}%
+                    </div>
+                    <div class="greeks-row">
+                        <div class="greek-item">Δ ${opt.delta.toFixed(2)}</div>
+                        <div class="greek-item">Γ ${opt.gamma.toFixed(3)}</div>
+                        <div class="greek-item">Θ ${opt.theta.toFixed(1)}</div>
+                        <div class="greek-item">ν ${opt.vega.toFixed(1)}</div>
+                    </div>
+                    <div class="stock-actions">
+                        <button class="btn btn-buy" onclick="openTradeModal('${opt.symbol}', ${opt.price}, 'buy')">Buy</button>
+                        <button class="btn btn-sell" onclick="openTradeModal('${opt.symbol}', ${opt.price}, 'sell')">Sell</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openTradeModal(symbol, price, action) {
+            currentAction = action;
+            
+            const option = options.find(opt => opt.symbol === symbol);
+            if (option) {
+                currentOption = option;
+                document.getElementById('lotSize').textContent = option.lot_size;
+            }
+            
+            document.getElementById('modalTitle').textContent = action === 'buy' ? 'Buy Option' : 'Sell Option';
+            document.getElementById('tradeSymbol').value = symbol;
+            document.getElementById('tradePrice').value = price;
+            document.getElementById('tradeQuantity').value = '1';
+            document.getElementById('tradeButton').textContent = action === 'buy' ? 'Buy' : 'Sell';
+            document.getElementById('tradeButton').className = action === 'buy' ? 'btn btn-buy' : 'btn btn-sell';
+            
+            calculateMargin();
+            document.getElementById('tradeModal').style.display = 'block';
+        }
+
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('tradeModal').style.display = 'none';
+        }
+
+        document.getElementById('tradeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const symbol = document.getElementById('tradeSymbol').value;
+            const quantity = document.getElementById('tradeQuantity').value;
+            
+            const orderType = document.getElementById('orderType').value;
+            
+            fetch(`/api/${currentAction}-option`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    quantity: parseInt(quantity),
+                    order_type: orderType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('tradeModal').style.display = 'none';
+                    loadData();
+                } else {
+                    alert(data.error);
+                }
+            });
+        });
+
+        function searchOptions() {
+            const searchTerm = document.getElementById('optionSearch').value;
+            fetch(`/api/options?search=${encodeURIComponent(searchTerm)}&atm=false`)
+                .then(response => response.json())
+                .then(data => {
+                    options = data;
+                    displayOptions(data);
+                });
+        }
+
+        function showATMOptions() {
+            document.getElementById('optionSearch').value = '';
+            fetch('/api/options?atm=true')
+                .then(response => response.json())
+                .then(data => {
+                    options = data;
+                    displayOptions(data);
+                });
+        }
+
+        function refreshOptions() {
+            fetch('/api/refresh-options', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showATMOptions(); // Show ATM after refresh
+                    loadData(); // Reload other data
+                    alert(`✅ ${data.message}`);
+                } else {
+                    alert('❌ Failed to refresh options chain');
+                }
+            });
+        }
+
+        function exitPosition(symbol, quantity) {
+            if (confirm(`Exit ${quantity} lots of ${symbol}?`)) {
+                fetch('/api/sell-option', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        quantity: quantity,
+                        order_type: 'NRML'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadData();
+                        alert('✅ Position exited successfully!');
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
+        }
+
+        function exitAllPositions() {
+            if (confirm('Are you sure you want to exit ALL F&O positions? This action cannot be undone.')) {
+                fetch('/api/exit-all-positions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadData();
+                        alert(`✅ ${data.message}`);
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
+        }
+
+        function acceptSebiDisclosure() {
+            document.getElementById('sebiModal').style.display = 'none';
+            sessionStorage.setItem('sebiAccepted', 'true');
+        }
+
+        // Modal drag functionality
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        
+        document.querySelector('.modal-header').addEventListener('mousedown', function(e) {
+            isDragging = true;
+            const modal = document.querySelector('.modal-content');
+            const rect = modal.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            modal.classList.add('dragging');
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                const modal = document.querySelector('.modal-content');
+                modal.style.position = 'fixed';
+                modal.style.left = (e.clientX - dragOffset.x) + 'px';
+                modal.style.top = (e.clientY - dragOffset.y) + 'px';
+                modal.style.margin = '0';
+            }
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                document.querySelector('.modal-content').classList.remove('dragging');
+            }
+        });
+
+        // Auto-completion functionality
+        let autocompleteTimeout;
+        const searchInput = document.getElementById('optionSearch');
+        const dropdown = document.getElementById('autocompleteDropdown');
+        
+        searchInput.addEventListener('input', function() {
+            clearTimeout(autocompleteTimeout);
+            const query = this.value.trim();
+            
+            if (query.length < 3) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            autocompleteTimeout = setTimeout(() => {
+                fetch(`/api/autocomplete-options?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(suggestions => {
+                        displayAutocomplete(suggestions);
+                    });
+            }, 300);
+        });
+        
+        function displayAutocomplete(suggestions) {
+            dropdown.innerHTML = '';
+            
+            if (suggestions.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            suggestions.forEach(opt => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+                item.innerHTML = `
+                    <div>
+                        <strong>${opt.strike} ${opt.type}</strong>
+                        <div style="font-size: 12px; color: #7f8c8d;">Exp: ${opt.expiry}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: ${opt.change >= 0 ? '#27ae60' : '#e74c3c'};">₹${opt.price}</div>
+                        <div style="font-size: 11px; color: #7f8c8d;">Δ ${opt.delta.toFixed(2)}</div>
+                    </div>
+                `;
+                
+                item.addEventListener('click', () => {
+                    // Add this option to the display
+                    options.push(opt);
+                    displayOptions([opt]);
+                    dropdown.style.display = 'none';
+                    searchInput.value = '';
+                });
+                
+                item.addEventListener('mouseenter', () => {
+                    item.style.backgroundColor = '#f8f9fa';
+                });
+                
+                item.addEventListener('mouseleave', () => {
+                    item.style.backgroundColor = 'white';
+                });
+                
+                dropdown.appendChild(item);
+            });
+            
+            dropdown.style.display = 'block';
+        }
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Add Enter key support for search
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                dropdown.style.display = 'none';
+                searchOptions();
+            }
+        });
+        
+        // Add Enter key support for chat
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        function openStrategyModal() {
+            document.getElementById('strategyModal').style.display = 'block';
+            // Set current NIFTY price as default strike
+            fetch('/api/nifty-price')
+                .then(response => response.json())
+                .then(data => {
+                    const roundedPrice = Math.round(data.price / 50) * 50; // Round to nearest 50
+                    document.getElementById('strikePrice').value = roundedPrice;
+                });
+            updateStrategyDescription();
+        }
+        
+        function closeStrategyModal() {
+            document.getElementById('strategyModal').style.display = 'none';
+        }
+        
+        function updateStrategyDescription() {
+            const strategyType = document.getElementById('strategyType').value;
+            const descriptions = {
+                'long_straddle': 'Buy ATM Call + Buy ATM Put. Profit from high volatility in either direction. Limited risk, unlimited reward.',
+                'short_straddle': 'Sell ATM Call + Sell ATM Put. Profit from low volatility. High risk, limited reward. Requires margin.',
+                'long_strangle': 'Buy OTM Call + Buy OTM Put. Cheaper than straddle, needs larger moves. Limited risk, unlimited reward.',
+                'short_strangle': 'Sell OTM Call + Sell OTM Put. Profit from range-bound movement. High risk, limited reward.',
+                'iron_condor': 'Sell Call Spread + Sell Put Spread. Profit from low volatility. Limited risk and reward.',
+                'butterfly': 'Buy 1 ITM Call + Sell 2 ATM Calls + Buy 1 OTM Call. Profit from minimal movement. Limited risk and reward.'
+            };
+            document.getElementById('strategyDescription').textContent = descriptions[strategyType];
+        }
+        
+        document.getElementById('strategyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('strategyName').value,
+                type: document.getElementById('strategyType').value,
+                strike: parseInt(document.getElementById('strikePrice').value),
+                expiry: document.getElementById('expiryDate').value,
+                lots: parseInt(document.getElementById('strategyLots').value),
+                maxLossPercent: parseFloat(document.getElementById('maxLossPercent').value)
+            };
+            
+            fetch('/api/create-strategy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeStrategyModal();
+                    loadStrategies();
+                    alert('✅ Strategy created successfully!');
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            });
+        });
+        
+        function loadStrategies() {
+            fetch('/api/strategies')
+                .then(response => response.json())
+                .then(strategies => {
+                    displayStrategies(strategies);
+                });
+        }
+        
+        function displayStrategies(strategies) {
+            const strategiesList = document.getElementById('strategiesList');
+            strategiesList.innerHTML = '';
+            
+            if (strategies.length === 0) {
+                strategiesList.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No strategies created yet. Create your first strategy!</p>';
+                return;
+            }
+            
+            strategies.forEach(strategy => {
+                const strategyCard = document.createElement('div');
+                strategyCard.style.cssText = 'background: white; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px;';
+                strategyCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${strategy.name}</h4>
+                            <p style="margin: 0; color: #7f8c8d; font-size: 14px;">${strategy.type.replace('_', ' ').toUpperCase()} • Max Loss: ${strategy.maxLossPercent}%</p>
+                        </div>
+                        <div>
+                            <span class="btn" style="background: ${strategy.status === 'active' ? '#27ae60' : '#95a5a6'}; color: white; padding: 4px 12px; font-size: 12px; margin-right: 10px;">${strategy.status}</span>
+                            <button class="btn btn-sell" onclick="deleteStrategy(${strategy.id})" style="padding: 4px 8px; font-size: 12px;">Delete</button>
+                        </div>
+                    </div>
+                `;
+                strategiesList.appendChild(strategyCard);
+            });
+        }
+        
+        function deleteStrategy(strategyId) {
+            if (confirm('Are you sure you want to delete this strategy?')) {
+                fetch(`/api/delete-strategy/${strategyId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadStrategies();
+                        alert('✅ Strategy deleted successfully!');
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                });
+            }
+        }
+
+        // Check if SEBI disclosure was already accepted in this session
+        if (sessionStorage.getItem('sebiAccepted') === 'true') {
+            document.getElementById('sebiModal').style.display = 'none';
+        }
+
+        loadData();
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>
