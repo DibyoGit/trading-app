@@ -9,7 +9,7 @@ import configparser
 import os
 
 app = Flask(__name__)
-app.secret_key = 'trading_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', 'trading_secret_key')
 
 def load_config():
     """Load configuration from properties file"""
@@ -39,6 +39,10 @@ def load_config():
 
 # Load configuration
 CONFIG = load_config()
+
+# Strategy Studio: bring-your-own-strategy engine, AI models, paper deployments
+from engine import web as studio_web
+studio_web.init_app(app, CONFIG)
 
 def get_real_nifty_price():
     """Fetch real NIFTY 50 closing price from API using configurable URLs"""
@@ -1170,4 +1174,8 @@ def withdraw_funds():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Debug reloader runs the module twice; start the scheduler only in the serving process
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('FLASK_ENV') == 'production':
+        from engine import service as studio_service
+        studio_service.start_scheduler(CONFIG, int(CONFIG.get('paper_tick_seconds', 900)))
+    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_ENV') != 'production')

@@ -1,2 +1,12 @@
 Flask==2.3.3
 requests
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+joblib>=1.3
+yfinance>=0.2.40
+# Optional: plain-English strategy translator (needs ANTHROPIC_API_KEY)
+anthropic
+# Optional, heavy: local FinBERT sentiment. Without it, set HF_TOKEN to use the Hugging Face API.
+# transformers
+# torch
