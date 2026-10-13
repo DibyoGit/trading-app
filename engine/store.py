@@ -1,11 +1,12 @@
 """SQLite persistence for the strategy platform (same DB file as the legacy app)."""
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
 from datetime import datetime
 
-DB_PATH = 'trading.db'
+DB_PATH = os.environ.get('DB_PATH', 'trading.db')
 DISCLAIMER_VERSION = '2026-10-v1'
 
 SCHEMA = """
