@@ -59,3 +59,45 @@ SQLite database stores:
 - Stock information
 - Portfolio holdings
 - Order history
+
+## Strategy Studio (v1): bring your own strategy
+
+Open `/studio` after logging in. The platform supplies **tooling only**: data, option pricing, backtesting, model training and paper execution. Customers write their own strategies and train their own models. The platform never publishes buy/sell calls.
+
+| Step | What the user does |
+|------|--------------------|
+| 1. Strategies | Write rules (`rsi_14 < 30 and close > sma_200`), choose option legs and risk limits. Optionally describe the strategy in plain English and Claude converts it into rules. Claude only translates; it does not invent strategies. |
+| 2. AI Models | Pick features, a target (`direction`, `big_move`, `vol_expansion`) and a model (logistic regression / random forest / gradient boosting). Validation is walk-forward with an embargo gap, and results are reported against a naive baseline. The model output becomes `model_<name>`, which rules can read. |
+| 3. Backtest | Event-driven simulator: decisions are made at the bar close and filled at the next open, with slippage, brokerage and STT. Option premiums use Black-Scholes on historical vol. |
+| 4. Paper Trading | Deploy a strategy with virtual capital. The same simulator advances it on each new daily bar (automatically every `paper_tick_seconds`, or with "Update now"). |
+| Integrations | A webhook (`POST /api/v2/webhook`, `X-API-Key`) for strategies that run on the customer's own infrastructure, FinBERT news sentiment (Hugging Face), and a Python plugin SDK for self-hosted operators. |
+
+Compliance-oriented design: a consent gate, per-deployment "this is my strategy" confirmation, an append-only audit log of every strategy, model, deployment and webhook intent, no platform-authored signals, and paper trading only.
+
+### Layout
+```
+engine/
+  pricing.py        Black-Scholes price, greeks, IV
+  data.py           Yahoo daily bars + disk cache, synthetic fallback
+  indicators.py     name-based indicators (sma_N, rsi_N, hv_N, ...)
+  rules.py          safe AST rule DSL (no code execution)
+  strategy_base.py  SDK: Strategy, Leg, RiskLimits, Context
+  simulator.py      shared backtest / paper engine + metrics
+  ai/models.py      walk-forward model training (scikit-learn)
+  ai/sentiment.py   FinBERT via transformers or the HF Inference API
+  ai/assistant.py   plain-English -> rule spec (Claude)
+  store.py          SQLite tables, audit log, API keys
+  service.py        orchestration + paper scheduler
+  web.py            /studio page and /api/v2 routes
+plugins/            operator-installed Python strategies
+tests/              python -m pytest tests
+```
+
+### Optional AI backends
+- Strategy translator: `pip install anthropic` and set `ANTHROPIC_API_KEY`.
+- Sentiment: `pip install transformers torch` (local CPU), or set `HF_TOKEN` to use the Hugging Face API.
+
+### Known limits of v1
+- Daily bars only. Option prices are modelled, not historical quotes.
+- No live broker execution. Use `engine/simulator.py` fills as the seam for a broker adapter.
+- Set `SECRET_KEY` in production. The legacy login still uses unsalted MD5 and needs replacing before real users sign up.

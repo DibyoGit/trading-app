@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: optionspaye-studio
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # Optional AI backends
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+    # Free plan disk is wiped on every redeploy/restart. For data that survives,
+    # upgrade to a paid plan, uncomment the disk below and set DB_PATH=/app/data/trading.db
+    # disk:
+    #   name: data
+    #   mountPath: /app/data
+    #   sizeGB: 1

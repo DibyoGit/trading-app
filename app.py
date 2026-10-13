@@ -9,7 +9,8 @@ import configparser
 import os
 
 app = Flask(__name__)
-app.secret_key = 'trading_secret_key'
+DB_PATH = os.environ.get('DB_PATH', 'trading.db')
+app.secret_key = os.environ.get('SECRET_KEY', 'trading_secret_key')
 
 def load_config():
     """Load configuration from properties file"""
@@ -39,6 +40,10 @@ def load_config():
 
 # Load configuration
 CONFIG = load_config()
+
+# Strategy Studio: bring-your-own-strategy engine, AI models, paper deployments
+from engine import web as studio_web
+studio_web.init_app(app, CONFIG)
 
 def get_real_nifty_price():
     """Fetch real NIFTY 50 closing price from API using configurable URLs"""
@@ -190,7 +195,7 @@ def generate_nifty_options():
     return options, greeks, nifty_price
 
 def init_db():
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     c.execute('''CREATE TABLE IF NOT EXISTS users
@@ -267,7 +272,7 @@ def login():
     username = request.form['username']
     password = hashlib.md5(request.form['password'].encode()).hexdigest()
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT id FROM users WHERE username=? AND password=?', (username, password))
     user = c.fetchone()
@@ -296,7 +301,7 @@ def logout():
 
 @app.route('/api/stocks')
 def get_stocks():
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT * FROM stocks')
     stocks = c.fetchall()
@@ -320,7 +325,7 @@ def get_portfolio():
     if 'user_id' not in session:
         return jsonify([])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''SELECT p.symbol, p.quantity, p.avg_price, s.name, s.price 
                  FROM portfolio p JOIN stocks s ON p.symbol = s.symbol 
@@ -350,7 +355,7 @@ def get_balance():
     if 'user_id' not in session:
         return jsonify({'balance': 0})
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
     balance = c.fetchone()[0]
@@ -367,7 +372,7 @@ def buy_stock():
     symbol = data['symbol']
     quantity = int(data['quantity'])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     c.execute('SELECT price FROM stocks WHERE symbol = ?', (symbol,))
@@ -414,7 +419,7 @@ def sell_stock():
     symbol = data['symbol']
     quantity = int(data['quantity'])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     c.execute('SELECT quantity FROM portfolio WHERE user_id = ? AND symbol = ?', 
@@ -457,7 +462,7 @@ def buy_option():
     quantity = int(data['quantity'])
     order_type = data['order_type']  # NRML or MIS
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Get option details
@@ -516,7 +521,7 @@ def sell_option():
     quantity = int(data['quantity'])
     order_type = data['order_type']
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Check existing position
@@ -556,7 +561,7 @@ def get_fo_portfolio():
     if 'user_id' not in session:
         return jsonify([])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''SELECT fp.symbol, fp.quantity, fp.avg_price, fp.strike, fp.expiry, fp.instrument_type,
                         o.price as current_price, o.lot_size
@@ -589,7 +594,7 @@ def get_fo_portfolio():
 
 @app.route('/api/futures')
 def get_futures():
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT * FROM futures')
     futures = c.fetchall()
@@ -615,7 +620,7 @@ def get_options():
     search = request.args.get('search', '')
     atm_only = request.args.get('atm', 'true').lower() == 'true'
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     if atm_only and not search:
@@ -672,7 +677,7 @@ def get_strategies():
     if 'user_id' not in session:
         return jsonify([])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT * FROM strategies WHERE user_id = ?', (session['user_id'],))
     strategies = c.fetchall()
@@ -699,7 +704,7 @@ def get_strategies():
 @app.route('/api/refresh-options', methods=['POST'])
 def refresh_options():
     """Refresh NIFTY options chain with latest data"""
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Clear existing options and greeks
@@ -823,7 +828,7 @@ def autocomplete_options():
     if len(query) < 3:  # Minimum 3 characters
         return jsonify([])
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Parse query for strike and type (e.g., "25500 CE" or "25600 PE")
@@ -882,7 +887,7 @@ def exit_all_positions():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'})
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Get all positions for the user
@@ -935,7 +940,7 @@ def create_strategy():
     max_loss_percent = data['maxLossPercent']
     
     # Get user's current balance for risk calculation
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT balance FROM users WHERE id = ?', (session['user_id'],))
     balance = c.fetchone()[0]
@@ -972,7 +977,7 @@ def place_strategy_order(strategy_id):
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'})
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Get strategy details
@@ -1063,7 +1068,7 @@ def place_strategy_order(strategy_id):
 
 def place_option_order(user_id, symbol, lots, price, option_type, strike):
     """Helper function to place individual option orders"""
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Ensure option exists in options table for portfolio display
@@ -1094,7 +1099,7 @@ def delete_strategy(strategy_id):
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'})
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('DELETE FROM strategies WHERE id = ? AND user_id = ?', (strategy_id, session['user_id']))
     conn.commit()
@@ -1118,7 +1123,7 @@ def add_funds():
     # Simulate payment processing (actual payment gateway integration would go here)
     # For now, we'll just add the funds directly
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Add funds to user balance
@@ -1146,7 +1151,7 @@ def withdraw_funds():
     if amount < 100 or amount > 500000:
         return jsonify({'success': False, 'error': 'Invalid amount. Must be between ₹100 and ₹5,00,000'})
     
-    conn = sqlite3.connect('trading.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # Check current balance
@@ -1170,4 +1175,8 @@ def withdraw_funds():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Debug reloader runs the module twice; start the scheduler only in the serving process
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('FLASK_ENV') == 'production':
+        from engine import service as studio_service
+        studio_service.start_scheduler(CONFIG, int(CONFIG.get('paper_tick_seconds', 900)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=os.environ.get('FLASK_ENV') != 'production')

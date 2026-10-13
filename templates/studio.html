@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f4f6fb; --panel: #ffffff; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb;
+  --accent: #0f766e; --accent-soft: #ccfbf1; --danger: #b91c1c; --ok: #15803d; --warn: #b45309;
+  --code: #f3f4f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f172a; --panel: #111827; --text: #e5e7eb; --muted: #9ca3af; --border: #1f2937;
+    --accent: #2dd4bf; --accent-soft: #134e4a; --danger: #f87171; --ok: #4ade80; --warn: #fbbf24; --code: #1f2937;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f172a; --panel: #111827; --text: #e5e7eb; --muted: #9ca3af; --border: #1f2937;
+  --accent: #2dd4bf; --accent-soft: #134e4a; --danger: #f87171; --ok: #4ade80; --warn: #fbbf24; --code: #1f2937;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap; }
+header h1 { font-size: 20px; }
+header .sub { color: var(--muted); font-size: 12px; }
+a { color: var(--accent); }
+nav { display: flex; gap: 4px; padding: 0 24px; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+nav button { background: none; border: none; padding: 12px 14px; color: var(--muted); cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; white-space: nowrap; }
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+.tab { display: none; } .tab.active { display: block; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; margin-bottom: 10px; }
+.card h3 { font-size: 14px; margin: 12px 0 6px; }
+label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; }
+textarea { font-family: Consolas, monospace; font-size: 13px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; } .row > * { flex: 1; min-width: 110px; }
+button.btn { background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+:root[data-theme="dark"] button.btn { color: #042f2e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.btn { color: #042f2e; } }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+button:disabled { opacity: .5; cursor: wait; }
+.actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+.pos { color: var(--ok); } .neg { color: var(--danger); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; }
+.kpi { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.kpi .v { font-size: 18px; font-weight: 700; } .kpi .l { font-size: 11px; color: var(--muted); }
+.notice { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+.warnbox { border-left: 3px solid var(--warn); padding: 8px 12px; background: var(--bg); font-size: 13px; margin: 10px 0; }
+.muted { color: var(--muted); font-size: 12px; }
+code, pre { background: var(--code); border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+code { padding: 1px 4px; } pre { padding: 10px; overflow-x: auto; white-space: pre-wrap; }
+.leg { display: grid; grid-template-columns: repeat(5, 1fr) auto; gap: 6px; align-items: end; margin-bottom: 6px; }
+@media (max-width: 600px) { .leg { grid-template-columns: 1fr 1fr; } }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; background: var(--bg); border: 1px solid var(--border); }
+#toast { position: fixed; bottom: 20px; right: 20px; left: 20px; max-width: 420px; margin-left: auto; padding: 12px 16px; border-radius: 8px; color: #fff; display: none; z-index: 100; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.modal .box { background: var(--panel); border-radius: 12px; max-width: 640px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto; }
+.modal ul { margin: 10px 0 10px 18px; } .modal li { margin: 6px 0; }
+.chart-box { position: relative; height: 280px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Strategy Studio</h1>
+    <div class="sub">Bring your own strategy. Your rules, your models, your decisions.</div>
+  </div>
+  <div class="row" style="flex:0; gap:8px; align-items:center;">
+    <span class="muted" id="who"></span>
+    <button class="ghost" onclick="toggleTheme()">Theme</button>
+    <a href="/" class="ghost" style="text-decoration:none; padding:7px 12px; border:1px solid var(--accent); border-radius:6px;">Dashboard</a>
+  </div>
+</header>
+<nav id="nav">
+  <button data-tab="strategies" class="active">1. Strategies</button>
+  <button data-tab="models">2. AI Models</button>
+  <button data-tab="backtest">3. Backtest</button>
+  <button data-tab="paper">4. Paper Trading</button>
+  <button data-tab="integrations">Integrations</button>
+  <button data-tab="audit">Audit Trail</button>
+</nav>
+
+<main>
+<!-- ============ STRATEGIES ============ -->
+<section class="tab active" id="tab-strategies">
+  <div class="notice">The platform does not provide trade ideas. Every strategy here is written by you. Templates in the docs only show the syntax.</div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Describe it in plain English <span class="pill">optional, Claude</span></h2>
+        <p class="muted">Write your own rules; the assistant only converts your wording into the rule format. It will not invent or improve a strategy. Review the result before saving.</p>
+        <textarea id="nl-text" rows="4" placeholder="e.g. When RSI 14 drops below 30 and price is above the 200-day average, buy 1 lot ATM call with 14 days to expiry. Exit when RSI goes above 55. Stop loss 40% of premium."></textarea>
+        <div class="actions"><button class="ghost" id="nl-btn" onclick="translateNL()">Convert to rules</button></div>
+        <div id="nl-notes"></div>
+      </div>
+      <div class="card">
+        <h2 id="editor-title">New strategy</h2>
+        <label>Type</label>
+        <select id="s-kind" onchange="renderKind()">
+          <option value="rules">No-code rules</option>
+          <option value="plugin">Python plugin (installed by operator)</option>
+          <option value="external">External (my own code, via webhook)</option>
+        </select>
+        <div class="row">
+          <div><label>Name</label><input id="s-name" maxlength="80"></div>
+          <div><label>Underlying</label><select id="s-underlying"><option>NIFTY</option><option>BANKNIFTY</option></select></div>
+        </div>
+        <div id="kind-rules">
+          <label>Entry condition (evaluated on each daily close)</label>
+          <input id="s-entry" placeholder="rsi_14 < 30 and close > sma_200">
+          <label>Exit condition (optional)</label>
+          <input id="s-exit" placeholder="rsi_14 > 55 or crossed_below(close, sma_20)">
+          <label>Option legs (1-4)</label>
+          <div id="legs"></div>
+          <button class="ghost" onclick="addLeg()">+ Leg</button>
+        </div>
+        <div id="kind-plugin" style="display:none">
+          <label>Plugin</label><select id="s-plugin"></select>
+          <label>Parameters (JSON)</label><textarea id="s-params" rows="3">{}</textarea>
+        </div>
+        <div id="kind-external" style="display:none">
+          <p class="muted" style="margin-top:8px">Your code runs on your machine and sends open/close intents to the webhook (see Integrations). The platform only fills and risk-manages them.</p>
+        </div>
+        <h3>Risk limits</h3>
+        <div class="row">
+          <div><label>Stop loss % of premium</label><input id="r-sl" type="number" value="0" min="0"></div>
+          <div><label>Target % of premium</label><input id="r-tp" type="number" value="0" min="0"></div>
+          <div><label>Max hold (bars)</label><input id="r-hold" type="number" value="0" min="0"></div>
+          <div><label>Exit N days pre-expiry</label><input id="r-pre" type="number" value="0" min="0"></div>
+        </div>
+        <div class="actions">
+          <button class="btn" onclick="saveStrategy()">Save strategy</button>
+          <button class="ghost" onclick="validateStrategy()">Validate</button>
+          <button class="ghost" onclick="resetEditor()">Clear</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>My strategies</h2>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Updated</th><th></th></tr></thead><tbody id="strategy-list"></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>Rule reference</h2>
+        <div class="table-wrap"><table><tbody id="ind-catalog"></tbody></table></div>
+        <p class="muted" style="margin-top:8px">Operators: <code>and or not &lt; &lt;= &gt; &gt;= == != + - * /</code>. Functions: <code>abs min max crossed_above(a,b) crossed_below(a,b)</code>. Strike: <code>ATM</code>, <code>ATM+2</code>, <code>ATM-1</code> (strike steps) or a number.</p>
+        <h3>Syntax example (not a recommendation)</h3>
+        <pre>entry: crossed_above(ema_9, ema_21) and hv_20 &lt; 0.18
+exit:  crossed_below(ema_9, ema_21)</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MODELS ============ -->
+<section class="tab" id="tab-models">
+  <div class="notice">Train your own model on market data. Its output becomes a variable <code>model_&lt;name&gt;</code> (a probability 0-1) that your strategy rules can read. Accuracy is measured walk-forward, on data the model never trained on.</div>
+  <div class="grid">
+    <div class="card">
+      <h2>Train a model</h2>
+      <div class="row">
+        <div><label>Name (lowercase)</label><input id="m-name" placeholder="trend_5d"></div>
+        <div><label>Underlying</label><select id="m-underlying"><option>NIFTY</option><option>BANKNIFTY</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Predict (target)</label><select id="m-target"></select></div>
+        <div><label>Horizon (bars)</label><input id="m-horizon" type="number" value="5" min="1" max="30"></div>
+        <div><label>Move threshold % (big_move)</label><input id="m-threshold" type="number" value="2" step="0.1"></div>
+      </div>
+      <div class="row">
+        <div><label>Model</label><select id="m-type"></select></div>
+        <div><label>Retrain every (bars)</label><input id="m-retrain" type="number" value="21" min="5"></div>
+        <div><label>History</label><select id="m-period"><option>5y</option><option selected>10y</option><option>max</option></select></div>
+      </div>
+      <label>Features (comma separated indicator names)</label>
+      <input id="m-features">
+      <div class="actions"><button class="btn" id="m-btn" onclick="trainModel()">Train &amp; validate</button></div>
+      <p class="muted" style="margin-top:8px">Small CPU models only: trains in seconds, no GPU, minimal energy. Compute time is reported for every run.</p>
+      <div id="m-result"></div>
+    </div>
+    <div class="card">
+      <h2>My models</h2>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Target</th><th>OOS acc.</th><th>Baseline</th><th>AUC</th><th></th></tr></thead><tbody id="model-list"></tbody></table></div>
+      <div class="warnbox">High accuracy on daily index direction is rare. An AUC near 0.50 means no skill. A model only helps if your strategy backtest improves when it uses it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BACKTEST ============ -->
+<section class="tab" id="tab-backtest">
+  <div class="card">
+    <h2>Run backtest</h2>
+    <div class="row">
+      <div><label>Strategy</label><select id="b-strategy"></select></div>
+      <div><label>History</label><select id="b-period"><option>1y</option><option>2y</option><option selected>5y</option><option>10y</option></select></div>
+      <div><label>Capital (₹)</label><input id="b-capital" type="number" value="500000"></div>
+      <div><label>IV multiplier</label><input id="b-iv" type="number" value="1.1" step="0.05"></div>
+      <div><label>Slippage %</label><input id="b-slip" type="number" value="0.5" step="0.1"></div>
+    </div>
+    <div class="actions"><button class="btn" id="b-btn" onclick="runBacktest()">Run</button></div>
+    <div class="warnbox">Option premiums are modelled with Black-Scholes from historical volatility (free historical option-chain data is not available). Fills happen at the next bar's open, with slippage, brokerage and STT. Past simulated results do not predict future returns.</div>
+  </div>
+  <div id="b-output" style="display:none">
+    <div class="card">
+      <h2 id="b-title">Results</h2>
+      <div class="kpis" id="b-kpis"></div>
+      <div class="chart-box"><canvas id="b-chart"></canvas></div>
+    </div>
+    <div class="card"><h2>Trades</h2><div class="table-wrap"><table><thead><tr><th>Entry</th><th>Exit</th><th>Legs</th><th>Spot</th><th>P&amp;L</th><th>Reason</th></tr></thead><tbody id="b-trades"></tbody></table></div></div>
+  </div>
+  <div class="card"><h2>History</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Strategy</th><th>Return</th><th>Max DD</th><th>Trades</th><th>Data</th><th>When</th><th></th></tr></thead><tbody id="b-history"></tbody></table></div></div>
+</section>
+
+<!-- ============ PAPER ============ -->
+<section class="tab" id="tab-paper">
+  <div class="card">
+    <h2>Deploy to paper trading</h2>
+    <p class="muted">Runs your strategy forward on new daily bars with virtual money. Deployments update automatically and on demand. Live broker execution is not enabled in this version.</p>
+    <div class="row">
+      <div><label>Strategy</label><select id="d-strategy"></select></div>
+      <div><label>Virtual capital (₹)</label><input id="d-capital" type="number" value="500000"></div>
+    </div>
+    <label style="display:flex; gap:8px; align-items:center; color:var(--text); font-size:13px;"><input type="checkbox" id="d-confirm" style="width:auto"> This strategy is my own and I am responsible for its decisions.</label>
+    <div class="actions"><button class="btn" onclick="deploy()">Deploy (paper)</button></div>
+  </div>
+  <div id="deployments"></div>
+</section>
+
+<!-- ============ INTEGRATIONS ============ -->
+<section class="tab" id="tab-integrations">
+  <div class="grid">
+    <div class="card">
+      <h2>Webhook for your own code</h2>
+      <p class="muted">Run any strategy (Python, TradingView, a notebook, a model on your GPU) on your own infrastructure and send intents here. Create a strategy of type "External", deploy it to paper, then:</p>
+      <div class="actions"><button class="ghost" onclick="rotateKey()">Generate / rotate API key</button></div>
+      <pre id="api-key-box" style="margin-top:10px">Key status: <span id="key-status">...</span></pre>
+      <pre>curl -X POST {{ request.host_url }}api/v2/webhook \
+  -H "X-API-Key: $STRAT_KEY" -H "Content-Type: application/json" \
+  -d '{"deployment_id": 1, "intent": "open", "tag": "my-signal",
+       "legs": [{"action":"BUY","type":"CE","strike":"ATM","lots":1,"expiry_days":7}]}'
+
+# close
+-d '{"deployment_id": 1, "intent": "close", "reason": "my exit"}'</pre>
+    </div>
+    <div class="card">
+      <h2>News sentiment (Hugging Face FinBERT)</h2>
+      <p class="muted">Paste headlines from your own sources, one per line. Scores range from -1 (negative) to +1 (positive). Uses a local model if installed, otherwise the Hugging Face API (HF_TOKEN).</p>
+      <textarea id="sent-text" rows="5"></textarea>
+      <div class="actions"><button class="ghost" id="sent-btn" onclick="runSentiment()">Score</button></div>
+      <div id="sent-out"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Python SDK (self-hosted operators)</h2>
+    <pre>from engine.strategy_base import Strategy, Leg, RiskLimits
+
+class MyStrategy(Strategy):
+    name = 'My strategy'
+    indicators = ['rsi_14', 'sma_50']      # computed for you, no look-ahead
+    models = ['trend_5d']                  # your trained model -> ctx.value('model_trend_5d')
+    risk = RiskLimits(stop_loss_pct=40, max_hold_bars=10)
+
+    def on_bar(self, ctx):
+        if ctx.position is None and ctx.value('model_trend_5d', 0) &gt; 0.6:
+            ctx.open([Leg('BUY', 'CE', 'ATM', lots=1, expiry_days=14)])
+        elif ctx.position and ctx.value('rsi_14', 50) &gt; 70:
+            ctx.close('my exit')</pre>
+    <p class="muted">Drop the file in <code>plugins/</code> and restart. Plugins run with server privileges, so only the operator installs them.</p>
+  </div>
+</section>
+
+<!-- ============ AUDIT ============ -->
+<section class="tab" id="tab-audit">
+  <div class="card">
+    <h2>Audit trail</h2>
+    <p class="muted">Every strategy you author, model you train, deployment and webhook intent is logged with a timestamp.</p>
+    <div class="table-wrap"><table><thead><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead><tbody id="audit-list"></tbody></table></div>
+  </div>
+</section>
+</main>
+
+<div class="modal" id="consent-modal">
+  <div class="box">
+    <h2>Before you start</h2>
+    <ul>
+      <li>This platform is a <b>software tool</b>. It does not give investment advice, research, recommendations or buy/sell signals.</li>
+      <li>You write your strategies and choose and train your models. All trading decisions are yours.</li>
+      <li>Backtests use modelled option prices and are approximations. Past or simulated performance does not guarantee future results.</li>
+      <li>F&amp;O trading carries a high risk of loss. SEBI studies show most individual F&amp;O traders lose money.</li>
+      <li>This version supports paper trading only. Any future live execution would go through your SEBI-registered broker under its algo-trading rules.</li>
+    </ul>
+    <label style="display:flex; gap:8px; align-items:center; color:var(--text); font-size:13px;"><input type="checkbox" id="consent-check" style="width:auto"> I understand and accept these terms.</label>
+    <div class="actions"><button class="btn" onclick="acceptConsent()">Continue</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+let META = null, STRATEGIES = [], EDIT_ID = null, CHART = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n, d = 0) => n == null ? '–' : Number(n).toLocaleString('en-IN', {maximumFractionDigits: d, minimumFractionDigits: d});
+const cls = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+
+function toast(msg, ok = true) {
+  const t = $('toast'); t.textContent = msg; t.style.background = ok ? '#0f766e' : '#b91c1c';
+  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 4500);
+}
+async function api(path, opts = {}) {
+  const res = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined});
+  const data = await res.json().catch(() => ({success: false, error: 'bad response'}));
+  if (res.status === 401) { location.href = '/'; }
+  if (res.status === 403) { $('consent-modal').style.display = 'flex'; }
+  return data;
+}
+async function busy(btn, fn) { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const next = dark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('studio-theme', next); } catch (e) {}
+}
+try { const t = localStorage.getItem('studio-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+  ({models: loadModels, backtest: loadBacktests, paper: loadDeployments, audit: loadAudit})[name]?.();
+}
+
+async function acceptConsent() {
+  if (!$('consent-check').checked) return toast('Tick the box to continue', false);
+  const r = await api('/api/v2/consent', {method: 'POST', body: {accept: true}});
+  if (r.success) { $('consent-modal').style.display = 'none'; toast('Thanks. You can start building.'); }
+}
+
+// ---------------- strategies ----------------
+function legRow(l = {action: 'BUY', type: 'CE', strike: 'ATM', lots: 1, expiry_days: 7}) {
+  const d = document.createElement('div'); d.className = 'leg';
+  d.innerHTML = `
+    <div><label>Action</label><select class="l-action"><option>BUY</option><option>SELL</option></select></div>
+    <div><label>Type</label><select class="l-type"><option>CE</option><option>PE</option></select></div>
+    <div><label>Strike</label><input class="l-strike" value="${esc(l.strike)}"></div>
+    <div><label>Lots</label><input class="l-lots" type="number" min="1" value="${esc(l.lots)}"></div>
+    <div><label>Days to expiry</label><input class="l-exp" type="number" min="1" value="${esc(l.expiry_days)}"></div>
+    <button class="danger" onclick="this.parentElement.remove()">✕</button>`;
+  d.querySelector('.l-action').value = l.action; d.querySelector('.l-type').value = l.type;
+  return d;
+}
+function addLeg(l) { if ($('legs').children.length >= 4) return toast('Max 4 legs', false); $('legs').appendChild(legRow(l)); }
+function renderKind() {
+  const k = $('s-kind').value;
+  ['rules', 'plugin', 'external'].forEach(x => $('kind-' + x).style.display = x === k ? '' : 'none');
+}
+function readSpec() {
+  const kind = $('s-kind').value;
+  const spec = {name: $('s-name').value.trim(), underlying: $('s-underlying').value,
+    risk: {stop_loss_pct: +$('r-sl').value || 0, target_pct: +$('r-tp').value || 0,
+           max_hold_bars: +$('r-hold').value || 0, exit_before_expiry_days: +$('r-pre').value || 0}};
+  if (kind === 'rules') {
+    spec.entry = $('s-entry').value; spec.exit = $('s-exit').value;
+    spec.legs = [...$('legs').children].map(d => ({action: d.querySelector('.l-action').value,
+      type: d.querySelector('.l-type').value, strike: d.querySelector('.l-strike').value,
+      lots: +d.querySelector('.l-lots').value, expiry_days: +d.querySelector('.l-exp').value}));
+  } else if (kind === 'plugin') {
+    spec.plugin = $('s-plugin').value;
+    try { spec.params = JSON.parse($('s-params').value || '{}'); } catch (e) { throw new Error('Parameters must be valid JSON'); }
+  }
+  return {kind, spec};
+}
+function fillEditor(kind, spec, id = null) {
+  EDIT_ID = id; $('editor-title').textContent = id ? 'Edit strategy' : 'New strategy';
+  $('s-kind').value = kind; renderKind();
+  $('s-name').value = spec.name || ''; $('s-underlying').value = spec.underlying || 'NIFTY';
+  $('s-entry').value = spec.entry || ''; $('s-exit').value = spec.exit || '';
+  $('legs').innerHTML = ''; (spec.legs?.length ? spec.legs : [undefined]).forEach(l => addLeg(l));
+  const r = spec.risk || {};
+  $('r-sl').value = r.stop_loss_pct || 0; $('r-tp').value = r.target_pct || 0;
+  $('r-hold').value = r.max_hold_bars || 0; $('r-pre').value = r.exit_before_expiry_days || 0;
+  if (kind === 'plugin') { $('s-plugin').value = spec.plugin; $('s-params').value = JSON.stringify(spec.params || {}, null, 1); }
+}
+function resetEditor() { fillEditor('rules', {}); $('nl-notes').innerHTML = ''; }
+async function validateStrategy() {
+  let body; try { body = readSpec(); } catch (e) { return toast(e.message, false); }
+  const r = await api('/api/v2/strategies/validate', {method: 'POST', body});
+  toast(r.success ? 'Valid. Reads: ' + (r.spec.names || []).join(', ') : r.error, r.success);
+}
+async function saveStrategy() {
+  let body; try { body = readSpec(); } catch (e) { return toast(e.message, false); }
+  const r = await api(EDIT_ID ? `/api/v2/strategies/${EDIT_ID}` : '/api/v2/strategies', {method: EDIT_ID ? 'PUT' : 'POST', body});
+  if (!r.success) return toast(r.error, false);
+  toast('Saved'); EDIT_ID = r.id; $('editor-title').textContent = 'Edit strategy'; loadStrategies();
+}
+async function deleteStrategy(id) {
+  if (!confirm('Delete this strategy and its paper deployments?')) return;
+  await api(`/api/v2/strategies/${id}`, {method: 'DELETE'}); if (EDIT_ID === id) resetEditor(); loadStrategies();
+}
+async function loadStrategies() {
+  STRATEGIES = await api('/api/v2/strategies');
+  $('strategy-list').innerHTML = STRATEGIES.map(s => `<tr><td><b>${esc(s.name)}</b><div class="muted">${esc(s.spec.entry || s.spec.plugin || 'webhook driven')}</div></td>
+    <td><span class="pill">${esc(s.kind)}</span></td><td class="muted">${esc(s.updated_at?.slice(0, 16).replace('T', ' '))}</td>
+    <td style="white-space:nowrap"><button class="ghost" onclick="editStrategy(${s.id})">Edit</button> <button class="danger" onclick="deleteStrategy(${s.id})">Delete</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="muted">No strategies yet. Write your first one on the left.</td></tr>';
+  const opts = STRATEGIES.map(s => `<option value="${s.id}">${esc(s.name)} (${esc(s.kind)})</option>`).join('');
+  $('b-strategy').innerHTML = STRATEGIES.filter(s => s.kind !== 'external').map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  $('d-strategy').innerHTML = opts;
+}
+function editStrategy(id) { const s = STRATEGIES.find(x => x.id === id); fillEditor(s.kind, s.spec, id); window.scrollTo({top: 0, behavior: 'smooth'}); }
+async function translateNL() {
+  await busy($('nl-btn'), async () => {
+    const r = await api('/api/v2/ai/translate', {method: 'POST', body: {text: $('nl-text').value}});
+    if (!r.success) return toast(r.error, false);
+    const s = r.spec;
+    if (s.error) { $('nl-notes').innerHTML = `<div class="warnbox">${esc(s.error)}</div>`; return; }
+    fillEditor('rules', {...s, legs: s.legs});
+    $('nl-notes').innerHTML = s.assumptions?.length ? `<div class="warnbox"><b>Check these assumptions:</b><ul style="margin-left:16px">${s.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : '';
+    toast('Converted. Review the rules below, then save.');
+  });
+}
+
+// ---------------- models ----------------
+async function loadModels() {
+  const ms = await api('/api/v2/models');
+  $('model-list').innerHTML = ms.map(m => `<tr><td><b>${esc(m.name)}</b><div class="muted">${esc(m.config.model_type)} · h=${m.config.horizon}</div></td>
+    <td>${esc(m.config.target)}</td><td>${fmt(m.metrics.accuracy * 100, 1)}%</td><td>${fmt(m.metrics.baseline_accuracy * 100, 1)}%</td>
+    <td>${fmt(m.metrics.auc, 3)}</td><td><button class="danger" onclick="deleteModel('${esc(m.name)}')">Delete</button></td></tr>`).join('')
+    || '<tr><td colspan="6" class="muted">No models yet.</td></tr>';
+}
+async function deleteModel(n) { if (!confirm('Delete model ' + n + '?')) return; await api('/api/v2/models/' + encodeURIComponent(n), {method: 'DELETE'}); loadModels(); }
+async function trainModel() {
+  await busy($('m-btn'), async () => {
+    $('m-result').innerHTML = '<p class="muted">Training with walk-forward validation...</p>';
+    const r = await api('/api/v2/models', {method: 'POST', body: {
+      name: $('m-name').value.trim(), underlying: $('m-underlying').value, target: $('m-target').value,
+      horizon: +$('m-horizon').value, threshold_pct: +$('m-threshold').value, model_type: $('m-type').value,
+      retrain_every: +$('m-retrain').value, period: $('m-period').value,
+      features: $('m-features').value.split(',').map(s => s.trim()).filter(Boolean)}});
+    if (!r.success) { $('m-result').innerHTML = ''; return toast(r.error, false); }
+    const m = r.metrics;
+    $('m-result').innerHTML = `<h3>Out-of-sample results <span class="pill">${esc(r.data_source)}</span></h3>
+      <div class="kpis">
+        <div class="kpi"><div class="v">${fmt(m.accuracy * 100, 1)}%</div><div class="l">Accuracy</div></div>
+        <div class="kpi"><div class="v">${fmt(m.baseline_accuracy * 100, 1)}%</div><div class="l">Naive baseline</div></div>
+        <div class="kpi"><div class="v ${cls(m.edge_vs_baseline)}">${fmt(m.edge_vs_baseline * 100, 1)} pts</div><div class="l">Edge vs baseline</div></div>
+        <div class="kpi"><div class="v">${fmt(m.auc, 3)}</div><div class="l">ROC AUC (0.5 = none)</div></div>
+        <div class="kpi"><div class="v">${fmt(m.brier, 3)}</div><div class="l">Brier (lower better)</div></div>
+        <div class="kpi"><div class="v">${m.oos_samples}</div><div class="l">OOS samples · ${m.refits} refits</div></div>
+        <div class="kpi"><div class="v">${m.compute_seconds}s</div><div class="l">CPU compute</div></div>
+      </div>
+      <div class="warnbox">${esc(m.verdict)}</div>
+      <h3>Feature importance</h3>
+      <table>${r.importance.map(f => `<tr><td>${esc(f.feature)}</td><td style="width:60%"><div style="background:var(--accent);height:8px;border-radius:4px;width:${(f.importance * 100).toFixed(1)}%"></div></td><td>${fmt(f.importance * 100, 1)}%</td></tr>`).join('')}</table>
+      <p class="muted" style="margin-top:8px">Use it in a rule, e.g. <code>model_${esc(r.config.name)} &gt; 0.6</code></p>`;
+    loadModels();
+  });
+}
+
+// ---------------- backtest ----------------
+async function runBacktest() {
+  const sid = $('b-strategy').value; if (!sid) return toast('Create a strategy first', false);
+  await busy($('b-btn'), async () => {
+    const r = await api(`/api/v2/strategies/${sid}/backtest`, {method: 'POST', body: {
+      period: $('b-period').value, capital: +$('b-capital').value, iv_multiplier: +$('b-iv').value, slippage_pct: +$('b-slip').value}});
+    if (!r.success) return toast(r.error, false);
+    renderBacktest(r.metrics, r.equity, r.trades, r.data_source, STRATEGIES.find(s => s.id == sid)?.name);
+    loadBacktests();
+  });
+}
+function renderBacktest(m, equity, trades, source, name) {
+  $('b-output').style.display = '';
+  $('b-title').innerHTML = `Results: ${esc(name)} <span class="pill">${esc(source)}</span> <span class="muted">${esc(m.first_date)} → ${esc(m.last_date)}</span>`;
+  const k = (v, l, c = '') => `<div class="kpi"><div class="v ${c}">${v}</div><div class="l">${l}</div></div>`;
+  $('b-kpis').innerHTML = [
+    k(fmt(m.total_return_pct, 1) + '%', 'Total return', cls(m.total_return_pct)),
+    k(fmt(m.cagr_pct, 1) + '%', 'CAGR', cls(m.cagr_pct)),
+    k(fmt(m.max_drawdown_pct, 1) + '%', 'Max drawdown', 'neg'),
+    k(fmt(m.sharpe, 2), 'Sharpe'),
+    k(m.trades, 'Trades'),
+    k(m.win_rate_pct != null ? fmt(m.win_rate_pct, 1) + '%' : '–', 'Win rate'),
+    k(m.profit_factor ?? '–', 'Profit factor'),
+    k('₹' + fmt(m.total_costs), 'Costs paid'),
+    k(fmt(m.underlying_return_pct, 1) + '%', 'Underlying move'),
+    k(fmt(m.exposure_pct, 0) + '%', 'Time in market'),
+  ].join('');
+  if (CHART) CHART.destroy();
+  const css = getComputedStyle(document.documentElement);
+  CHART = new Chart($('b-chart'), {type: 'line', data: {labels: equity.map(e => e.date), datasets: [
+      {label: 'Equity (₹)', data: equity.map(e => e.equity), borderColor: css.getPropertyValue('--accent').trim(), pointRadius: 0, borderWidth: 1.6, yAxisID: 'y'},
+      {label: 'Underlying', data: equity.map(e => e.spot), borderColor: css.getPropertyValue('--muted').trim(), pointRadius: 0, borderWidth: 1, borderDash: [4, 3], yAxisID: 'y1'}]},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+      scales: {x: {ticks: {maxTicksLimit: 8, color: css.getPropertyValue('--muted').trim()}, grid: {display: false}},
+               y: {ticks: {color: css.getPropertyValue('--muted').trim()}, grid: {color: css.getPropertyValue('--border').trim()}},
+               y1: {position: 'right', grid: {display: false}, ticks: {color: css.getPropertyValue('--muted').trim()}}},
+      plugins: {legend: {labels: {color: css.getPropertyValue('--text').trim()}}}}});
+  $('b-trades').innerHTML = trades.slice().reverse().map(t => `<tr><td>${esc(t.entry_date)}</td><td>${esc(t.exit_date)}</td>
+    <td>${t.legs.map(l => `${l.action} ${l.lots}× ${l.strike} ${l.type} <span class="muted">exp ${l.expiry} @${l.entry}→${l.exit}</span>`).join('<br>')}</td>
+    <td>${fmt(t.entry_spot)}→${fmt(t.exit_spot)}</td><td class="${cls(t.pnl)}">₹${fmt(t.pnl)}</td><td class="muted">${esc(t.reason)}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="muted">Entry condition never triggered.</td></tr>';
+}
+async function loadBacktests() {
+  const bs = await api('/api/v2/backtests');
+  $('b-history').innerHTML = bs.map(b => `<tr><td>${b.id}</td><td>${esc(b.strategy_name)}</td>
+    <td class="${cls(b.metrics.total_return_pct)}">${fmt(b.metrics.total_return_pct, 1)}%</td><td>${fmt(b.metrics.max_drawdown_pct, 1)}%</td>
+    <td>${b.metrics.trades}</td><td class="muted">${esc(b.data_source)}</td><td class="muted">${esc(b.created_at.slice(0, 16).replace('T', ' '))}</td>
+    <td><button class="ghost" onclick="openBacktest(${b.id})">View</button></td></tr>`).join('') || '<tr><td colspan="8" class="muted">No runs yet.</td></tr>';
+}
+async function openBacktest(id) { const b = await api('/api/v2/backtests/' + id); renderBacktest(b.metrics, b.equity, b.trades, b.data_source, b.strategy_name); window.scrollTo({top: 0, behavior: 'smooth'}); }
+
+// ---------------- paper ----------------
+async function deploy() {
+  const r = await api('/api/v2/deployments', {method: 'POST', body: {strategy_id: +$('d-strategy').value,
+    confirm: $('d-confirm').checked, settings: {capital: +$('d-capital').value}}});
+  if (!r.success) return toast(r.error, false);
+  toast('Deployed to paper trading'); loadDeployments();
+}
+async function loadDeployments() {
+  const ds = await api('/api/v2/deployments');
+  $('deployments').innerHTML = ds.map(d => {
+    const pnl = d.equity != null ? d.equity - d.capital : null;
+    return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <h2>#${d.id} ${esc(d.strategy_name)} <span class="pill">${esc(d.mode)}</span> <span class="pill">${esc(d.status)}</span></h2>
+      <div class="actions" style="margin:0">${d.status === 'active' ? `<button class="ghost" onclick="tick(${d.id})">Update now</button><button class="danger" onclick="stopDep(${d.id})">Stop</button>` : ''}</div></div>
+      <div class="kpis">
+        <div class="kpi"><div class="v">₹${fmt(d.equity)}</div><div class="l">Equity</div></div>
+        <div class="kpi"><div class="v ${cls(pnl)}">₹${fmt(pnl)}</div><div class="l">P&amp;L</div></div>
+        <div class="kpi"><div class="v">${esc(d.last_bar || '–')}</div><div class="l">Last bar processed</div></div>
+        <div class="kpi"><div class="v">${d.pending.length}</div><div class="l">Pending (fill next open)</div></div>
+      </div>
+      <h3>Open position</h3>${d.position ? d.position.legs.map(l => `<div>${l.action} ${l.lots}× ${l.strike} ${l.type} exp ${l.expiry} · entry ₹${l.entry} · mark ₹${l.mark ?? '–'}</div>`).join('') : '<p class="muted">Flat</p>'}
+      <h3>Recent orders</h3><div class="table-wrap"><table>${d.orders.slice().reverse().map(o => `<tr><td>${esc(o.date)}</td><td>${esc(o.kind)}</td><td>${o.legs.map(l => `${l.action} ${l.lots}× ${l.strike} ${l.type}`).join(', ')}</td><td class="muted">${esc(o.note)}</td></tr>`).join('') || '<tr><td class="muted">None yet</td></tr>'}</table></div></div>`;
+  }).join('') || '<div class="card muted">No deployments yet.</div>';
+}
+async function tick(id) { const r = await api(`/api/v2/deployments/${id}/tick`, {method: 'POST'}); toast(r.success ? `Processed ${r.processed} new bar(s)` : r.error, r.success); loadDeployments(); }
+async function stopDep(id) { if (!confirm('Stop this deployment?')) return; await api(`/api/v2/deployments/${id}/stop`, {method: 'POST'}); loadDeployments(); }
+
+// ---------------- integrations / audit ----------------
+async function rotateKey() {
+  if (META.has_api_key && !confirm('Rotating invalidates your current key. Continue?')) return;
+  const r = await api('/api/v2/api-key', {method: 'POST'});
+  if (!r.success) return toast(r.error, false);
+  META.has_api_key = true;
+  $('api-key-box').textContent = 'Your API key (shown once):\n' + r.api_key;
+}
+async function runSentiment() {
+  await busy($('sent-btn'), async () => {
+    const texts = $('sent-text').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const r = await api('/api/v2/ai/sentiment', {method: 'POST', body: {texts}});
+    if (!r.success) return toast(r.error, false);
+    $('sent-out').innerHTML = `<p class="muted" style="margin-top:8px">Model ${esc(r.model)} · backend ${esc(r.backend)} · average <b class="${cls(r.aggregate)}">${r.aggregate}</b></p>
+      <table>${r.results.map(x => `<tr><td>${esc(x.text)}</td><td class="${cls(x.score)}">${x.score}</td><td class="muted">${esc(x.label)}</td></tr>`).join('')}</table>`;
+  });
+}
+async function loadAudit() {
+  const rows = await api('/api/v2/audit');
+  $('audit-list').innerHTML = rows.map(a => `<tr><td class="muted" style="white-space:nowrap">${esc(a.ts.replace('T', ' '))}</td><td>${esc(a.event)}</td>
+    <td><code>${esc(JSON.stringify(a.detail).slice(0, 220))}</code></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Nothing yet.</td></tr>';
+}
+
+// ---------------- boot ----------------
+(async function init() {
+  META = await api('/api/v2/meta');
+  $('who').textContent = META.username || '';
+  if (!META.consent) $('consent-modal').style.display = 'flex';
+  $('key-status').textContent = META.has_api_key ? 'a key exists (rotate to see a new one)' : 'no key yet';
+  $('ind-catalog').innerHTML = META.indicators.map(i => `<tr><td><code>${esc(i.name)}</code></td><td class="muted">${esc(i.desc)}</td></tr>`).join('');
+  $('s-plugin').innerHTML = META.plugins.map(p => `<option value="${esc(p.key)}">${esc(p.name)}</option>`).join('') || '<option value="">No plugins installed</option>';
+  $('m-target').innerHTML = Object.entries(META.targets).map(([k, v]) => `<option value="${k}" title="${esc(v)}">${k}</option>`).join('');
+  $('m-type').innerHTML = Object.entries(META.model_types).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('m-features').value = META.default_features.join(', ');
+  resetEditor();
+  loadStrategies();
+})();
+</script>
+</body>
+</html>
