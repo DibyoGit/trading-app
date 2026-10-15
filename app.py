@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect
 import sqlite3
-import hashlib
 import random
 from datetime import datetime, timedelta
 import math
@@ -44,6 +43,10 @@ CONFIG = load_config()
 # Strategy Studio: bring-your-own-strategy engine, AI models, paper deployments
 from engine import web as studio_web
 studio_web.init_app(app, CONFIG)
+
+# Trading terminal: virtual-money index F&O, login/registration
+from trader import web as trader_web
+trader_web.init_app(app, CONFIG)
 
 def get_real_nifty_price():
     """Fetch real NIFTY 50 closing price from API using configurable URLs"""
@@ -264,40 +267,20 @@ def init_db():
 @app.route('/')
 def index():
     if 'user_id' not in session:
-        return render_template('login.html')
-    return render_template('dashboard.html')
+        return render_template('auth.html')
+    return render_template('terminal.html')
 
-@app.route('/login', methods=['POST'])
-def login():
-    username = request.form['username']
-    password = hashlib.md5(request.form['password'].encode()).hexdigest()
-    
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT id FROM users WHERE username=? AND password=?', (username, password))
-    user = c.fetchone()
-    
-    if user:
-        session['user_id'] = user[0]
-        session['username'] = username
-        conn.close()
-        return jsonify({'success': True})
-    
-    try:
-        c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
-        conn.commit()
-        session['user_id'] = c.lastrowid
-        session['username'] = username
-        conn.close()
-        return jsonify({'success': True})
-    except:
-        conn.close()
-        return jsonify({'success': False, 'error': 'Login failed'})
+@app.route('/legacy')
+def legacy_dashboard():
+    """Original dashboard (random demo prices), kept for comparison."""
+    if 'user_id' not in session:
+        return redirect('/')
+    return render_template('dashboard.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return render_template('login.html')
+    return redirect('/')
 
 @app.route('/api/stocks')
 def get_stocks():
@@ -1179,4 +1162,5 @@ if __name__ == '__main__':
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('FLASK_ENV') == 'production':
         from engine import service as studio_service
         studio_service.start_scheduler(CONFIG, int(CONFIG.get('paper_tick_seconds', 900)))
+        trader_web.start_scheduler(int(CONFIG.get('order_match_seconds', 20)))
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=os.environ.get('FLASK_ENV') != 'production')

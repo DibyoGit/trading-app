@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OptionsPaye</title>
+<style>
+:root { --bg: #f5f6f8; --panel: #fff; --text: #1d2433; --muted: #6b7385; --border: #e3e6ec; --brand: #3b5bdb; --danger: #d63939; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0e1116; --panel: #161b22; --text: #e6e9ef; --muted: #8b93a3; --border: #262d38; --brand: #6c8cff; --danger: #ff6b6b; }
+}
+:root[data-theme="dark"] { --bg: #0e1116; --panel: #161b22; --text: #e6e9ef; --muted: #8b93a3; --border: #262d38; --brand: #6c8cff; --danger: #ff6b6b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.box { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 32px 28px; }
+h1 { font-size: 22px; letter-spacing: -.3px; }
+.tag { color: var(--muted); font-size: 13px; margin: 4px 0 24px; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.tabs button { flex: 1; background: none; border: none; padding: 10px; font-size: 14px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 15px; }
+input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+.submit { width: 100%; margin-top: 20px; padding: 11px; background: var(--brand); color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.submit:disabled { opacity: .6; }
+.err { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
+.foot { color: var(--muted); font-size: 11px; margin-top: 18px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>OptionsPaye</h1>
+  <p class="tag">Practice NIFTY &amp; BANKNIFTY F&amp;O with virtual money</p>
+  <div class="tabs"><button id="t-login" class="on" onclick="mode('login')">Log in</button><button id="t-register" onclick="mode('register')">Create account</button></div>
+  <form id="f">
+    <label for="u">Username</label><input id="u" autocomplete="username" required>
+    <label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
+    <button class="submit" id="go">Log in</button>
+    <div class="err" id="err"></div>
+  </form>
+  <p class="foot">Virtual money only. Option prices are simulated from the index. Nothing here is investment advice.</p>
+</div>
+<script>
+let MODE = 'login';
+function mode(m) {
+  MODE = m;
+  document.getElementById('t-login').classList.toggle('on', m === 'login');
+  document.getElementById('t-register').classList.toggle('on', m === 'register');
+  document.getElementById('go').textContent = m === 'login' ? 'Log in' : 'Create account';
+  document.getElementById('p').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+  document.getElementById('p').placeholder = m === 'login' ? '' : 'At least 8 characters';
+  document.getElementById('err').textContent = '';
+}
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const go = document.getElementById('go'); go.disabled = true;
+  try {
+    const r = await fetch('/auth/' + MODE, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: document.getElementById('u').value, password: document.getElementById('p').value})});
+    const d = await r.json();
+    if (d.success) location.href = '/'; else document.getElementById('err').textContent = d.error || 'Failed';
+  } catch (_) { document.getElementById('err').textContent = 'Network error'; }
+  go.disabled = false;
+});
+</script>
+</body>
+</html>

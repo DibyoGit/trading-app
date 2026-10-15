@@ -60,6 +60,29 @@ SQLite database stores:
 - Portfolio holdings
 - Order history
 
+## Trading terminal (home page): virtual-money index F&O
+
+After logging in, `/` opens the terminal: a watchlist with search, an intraday chart, an option chain, an order ticket, and Orders / Positions / Funds views.
+
+- **Instruments:** NIFTY and BANKNIFTY options and futures. NIFTY has weekly expiries every Tuesday plus monthly ones; BANKNIFTY and all futures are monthly (last Tuesday). Exchange holidays are not modelled.
+- **Prices:** the index level comes from Yahoo (delayed). Option premiums are modelled with Black-Scholes using a volatility smile on 20-day historical vol; futures use cost of carry. Bid/ask spreads are synthetic.
+- **Orders:** Market, Limit and SL-M. Products are MIS (auto squared off at 15:20 IST) and NRML. Expired contracts settle at intrinsic value.
+- **Margin:** buying options needs the full premium. Short options and futures block 12% of notional. Charges are ₹20 per order plus 0.1% STT on option sells.
+- **Accounts:** ₹10,00,000 virtual capital, which can be reset at any time.
+- **Login:** salted scrypt password hashes. Accounts from the legacy app (unsalted MD5) are upgraded automatically at their next login.
+- Settings live in `config.properties`: `virtual_capital`, `max_lots_per_order`, `enforce_market_hours`, `order_match_seconds`.
+- The old dashboard (random demo prices) is still reachable at `/legacy`.
+
+```
+trader/
+  clock.py        IST clock, market hours, MIS square-off time
+  instruments.py  expiry calendar, instrument keys, search
+  market.py       index quotes, option/future pricing, chain, candles
+  broker.py       orders, fills, margin, positions, settlement
+  auth.py         login / registration
+  web.py          /auth/* and /api/t/* routes, order-matching scheduler
+```
+
 ## Strategy Studio (v1): bring your own strategy
 
 Open `/studio` after logging in. The platform supplies **tooling only**: data, option pricing, backtesting, model training and paper execution. Customers write their own strategies and train their own models. The platform never publishes buy/sell calls.
@@ -100,4 +123,4 @@ tests/              python -m pytest tests
 ### Known limits of v1
 - Daily bars only. Option prices are modelled, not historical quotes.
 - No live broker execution. Use `engine/simulator.py` fills as the seam for a broker adapter.
-- Set `SECRET_KEY` in production. The legacy login still uses unsalted MD5 and needs replacing before real users sign up.
+- Set `SECRET_KEY` in production.
