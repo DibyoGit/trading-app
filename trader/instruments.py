@@ -4,7 +4,8 @@ Key format:  NIFTY:2026-10-20:24500:CE   (option)
              NIFTY:2026-10-27:FUT        (future)
 Expiry rules (NSE, from Sept 2025): NIFTY weekly options every Tuesday plus
 monthly on the last Tuesday; BANKNIFTY options and all index futures monthly on
-the last Tuesday. Holiday shifts are not modelled in v1.
+the last Tuesday. When that day is an exchange holiday, expiry moves to the
+previous trading day.
 """
 import calendar
 import re
@@ -60,8 +61,12 @@ def _last_weekday(year, month, weekday):
     return last - timedelta(days=(last.weekday() - weekday) % 7)
 
 
+def _monthly_for(year, month):
+    return clock.previous_trading_day(_last_weekday(year, month, EXPIRY_WEEKDAY))
+
+
 def is_monthly(d):
-    return d == _last_weekday(d.year, d.month, EXPIRY_WEEKDAY)
+    return d == _monthly_for(d.year, d.month)
 
 
 def _alive(d, at=None):
@@ -72,7 +77,7 @@ def monthly_expiries(underlying, count=3, start=None):
     start = start or clock.today()
     out, y, m = [], start.year, start.month
     while len(out) < count:
-        d = _last_weekday(y, m, EXPIRY_WEEKDAY)
+        d = _monthly_for(y, m)
         if d >= start and (start != clock.today() or _alive(d)):
             out.append(d)
         m += 1
@@ -89,8 +94,9 @@ def option_expiries(underlying):
     weekly, d = [], clock.today()
     d += timedelta(days=(EXPIRY_WEEKDAY - d.weekday()) % 7)
     while len(weekly) < 4:
-        if _alive(d):
-            weekly.append(d)
+        actual = clock.previous_trading_day(d)
+        if actual >= clock.today() and _alive(actual):
+            weekly.append(actual)
         d += timedelta(days=7)
     dates = sorted(set(weekly) | set(monthly))
     return [{'date': x.isoformat(), 'monthly': x in monthly} for x in dates]

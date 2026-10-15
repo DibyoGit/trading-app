@@ -18,6 +18,7 @@ USERS_SCHEMA = '''CREATE TABLE IF NOT EXISTS users
 
 
 def init_app(app, config):
+    clock.configure(config)
     market.configure(config)
     broker.configure(config)
     with store.connect() as conn:

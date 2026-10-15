@@ -30,6 +30,7 @@ def env(tmp_path, monkeypatch):
         'underlying': und, 'name': und, 'ltp': SPOT[und], 'prev_close': 24000.0 if und == 'NIFTY' else 52000.0,
         'change': 0, 'change_pct': 0, 'source': 'test', 'as_of': None, 'hv20': 0.15})
     monkeypatch.setattr(market, 'lot_size', lambda und: 65 if und == 'NIFTY' else 30)
+    monkeypatch.setattr(market, 'vix', lambda: 14.0)
     clock._now_override = at(2026, 10, 14)  # Wednesday
     SPOT.update({'NIFTY': 24000.0, 'BANKNIFTY': 52000.0})
     yield
@@ -52,19 +53,35 @@ def order(uid, inst, side, lots=1, **kw):
 
 
 # ---- calendar ------------------------------------------------------------------
-def test_expiry_calendar():
-    nifty = instruments.option_expiries('NIFTY')
-    dates = [date.fromisoformat(e['date']) for e in nifty]
-    assert all(d.weekday() == 1 for d in dates)              # Tuesdays
-    assert dates[0] == date(2026, 10, 20)                     # next Tuesday
-    assert any(e['monthly'] and e['date'] == '2026-10-27' for e in nifty)  # last Tuesday of Oct
+def test_expiry_calendar_with_holidays():
+    dates = [e['date'] for e in instruments.option_expiries('NIFTY')]
+    # Tue 20 Oct is Dussehra -> Mon 19 Oct; Tue 10 Nov is Diwali Balipratipada -> Mon 9 Nov
+    assert dates[:4] == ['2026-10-19', '2026-10-27', '2026-11-03', '2026-11-09']
+    monthly = [e['date'] for e in instruments.option_expiries('NIFTY') if e['monthly']]
+    assert monthly == ['2026-10-27', '2026-11-23', '2026-12-29']  # 24 Nov Guru Nanak Jayanti -> 23 Nov
     bank = instruments.option_expiries('BANKNIFTY')
     assert all(e['monthly'] for e in bank) and len(bank) == 3
 
 
 def test_expiry_day_rollover():
-    clock._now_override = at(2026, 10, 20, 15, 31)            # Tuesday after close
+    clock._now_override = at(2026, 10, 19, 15, 31)            # expiry day after close
     assert instruments.option_expiries('NIFTY')[0]['date'] == '2026-10-27'
+
+
+def test_trading_minutes_skip_weekend_and_holiday():
+    # Thu 15 Oct 15:00 -> Mon 19 Oct 15:30: 30 + 375 (Fri) + 375 (Mon); Sat/Sun skipped
+    assert clock.trading_minutes_between(at(2026, 10, 15, 15, 0), at(2026, 10, 19, 15, 30)) == 780
+    assert clock.trading_minutes_between(at(2026, 10, 20, 9, 0), at(2026, 10, 20, 16, 0)) == 0  # holiday
+
+
+def test_option_prices_track_market_quotes():
+    """Model vs live NSE quotes for NIFTY 19-Oct-2026 weekly (spot 23038.05, VIX 14.35)."""
+    clock._now_override = at(2026, 10, 15, 13, 30)
+    market.vix = lambda: 14.35
+    observed = {(22700, 'PE'): 37.65, (22800, 'CE'): 284.90, (23000, 'CE'): 143.00, (23000, 'PE'): 110.35}
+    for (k, kind), px in observed.items():
+        p, _, _ = market.model_price(Instrument('NIFTY', date(2026, 10, 19), kind, float(k)), 23038.05)
+        assert abs(p / px - 1) < 0.06, (k, kind, p, px)
 
 
 def test_key_validation():
@@ -171,7 +188,7 @@ def test_expiry_settles_at_intrinsic():
     order(1, inst, 'BUY')
     c_before = cash(1)
     SPOT['NIFTY'] = 24300.0
-    clock._now_override = at(2026, 10, 20, 15, 31)
+    clock._now_override = at(2026, 10, 19, 15, 31)
     broker.process(1)
     assert broker.positions(1)[0]['qty'] == 0
     assert cash(1) == pytest.approx(c_before + 300 * 65)      # no charges on settlement

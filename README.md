@@ -64,8 +64,8 @@ SQLite database stores:
 
 After logging in, `/` opens the terminal: a watchlist with search, an intraday chart, an option chain, an order ticket, and Orders / Positions / Funds views.
 
-- **Instruments:** NIFTY and BANKNIFTY options and futures. NIFTY has weekly expiries every Tuesday plus monthly ones; BANKNIFTY and all futures are monthly (last Tuesday). Exchange holidays are not modelled.
-- **Prices:** the index level comes from Yahoo (delayed). Option premiums are modelled with Black-Scholes using a volatility smile on 20-day historical vol; futures use cost of carry. Bid/ask spreads are synthetic.
+- **Instruments:** NIFTY and BANKNIFTY options and futures. NIFTY has weekly expiries every Tuesday plus monthly ones; BANKNIFTY and all futures are monthly (last Tuesday). When an expiry falls on an NSE holiday it moves to the previous trading day (2026 list built in; override with `nse_holidays`).
+- **Prices:** the index level comes from Yahoo (delayed). Option premiums are modelled with Black-Scholes: at-the-money IV = live India VIX, a put skew fitted to NSE weekly quotes, and time to expiry counted in trading minutes. In a check against live Kite quotes the model landed within about 4% of the market price. Futures use cost of carry. Bid/ask spreads are synthetic.
 - **Orders:** Market, Limit and SL-M. Products are MIS (auto squared off at 15:20 IST) and NRML. Expired contracts settle at intrinsic value.
 - **Margin:** buying options needs the full premium. Short options and futures block 12% of notional. Charges are ₹20 per order plus 0.1% STT on option sells.
 - **Accounts:** ₹10,00,000 virtual capital, which can be reset at any time.

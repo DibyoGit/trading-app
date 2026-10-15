@@ -406,7 +406,7 @@ async function loadChain() {
   const c = await api(`/api/t/chain?underlying=${S.und}&expiry=${S.expiry}`);
   if (c.success === false) return toast(c.error, 'bad');
   const spot = c.spot.ltp;
-  $('chain-meta').textContent = `Spot ${fmt(spot)} · lot ${c.lot_size}`;
+  $('chain-meta').textContent = `Spot ${fmt(spot)} · lot ${c.lot_size} · IV from ${c.vol_source}`;
   $('chain').innerHTML = c.rows.map(r => {
     const ci = r.strike < spot, pi = r.strike > spot;
     return `<tr class="${r.atm ? 'atm' : ''}">
